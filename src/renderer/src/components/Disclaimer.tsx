@@ -1,0 +1,65 @@
+import { useEffect, useState } from 'react'
+
+const KEY = 'pt.disclaimerAccepted.v1'
+
+/**
+ * One-time usage notice shown on first launch. Frames the app as a personal,
+ * offline, own-data-only post-session tracker to stay within the sites' tool
+ * policies (no real-time use, no HUD overlay, no opponent data, no sharing).
+ */
+export function Disclaimer(): JSX.Element | null {
+  const [open, setOpen] = useState(false)
+
+  useEffect(() => {
+    if (localStorage.getItem(KEY) !== 'true') setOpen(true)
+  }, [])
+
+  if (!open) return null
+
+  const accept = (): void => {
+    localStorage.setItem(KEY, 'true')
+    setOpen(false)
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 grid place-items-center bg-black/60 backdrop-blur-sm p-4">
+      <div className="card max-w-lg w-full p-6">
+        <h2 className="text-lg font-semibold mb-2">Hinweis zur Nutzung</h2>
+        <p className="text-sm text-muted mb-4">
+          Dieses Tool ist ausschließlich für die <span className="text-text">private Offline-Auswertung
+          deiner eigenen Spielergebnisse</span> gedacht. Damit du im Rahmen der Richtlinien von
+          PokerStars und GGPoker bleibst:
+        </p>
+        <ul className="text-sm space-y-2 mb-4">
+          <li className="flex gap-2">
+            <span className="text-profit">✓</span> Nur <span className="text-text">deine eigenen</span>{' '}
+            Hand-Histories / PokerCraft-Exporte – keine Gegnerdaten, keine Massendatenanalyse.
+          </li>
+          <li className="flex gap-2">
+            <span className="text-profit">✓</span> Reine{' '}
+            <span className="text-text">Nachbereitung nach der Session</span> – kein Echtzeit-HUD,
+            kein Overlay, keine Spielhilfe während des Spiels.
+          </li>
+          <li className="flex gap-2">
+            <span className="text-profit">✓</span> Daten bleiben{' '}
+            <span className="text-text">lokal</span> – kein Upload, keine Weitergabe.
+          </li>
+          <li className="flex gap-2">
+            <span className="text-gg">!</span> <span className="text-text">GGPoker</span> ist
+            besonders restriktiv (Security &amp; Ecology Policy). Der Import deiner PokerCraft-Daten
+            erfolgt auf <span className="text-text">eigenes Risiko</span>; im Zweifel die PokerCraft-App
+            selbst nutzen.
+          </li>
+        </ul>
+        <p className="text-xs text-muted mb-5">
+          Keine Rechtsberatung. Prüfe die aktuellen Nutzungsbedingungen der Anbieter selbst.
+        </p>
+        <div className="flex justify-end">
+          <button className="btn-primary" onClick={accept}>
+            Verstanden
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}

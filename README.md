@@ -38,6 +38,29 @@ GGPoker liefert seine Daten als **PokerCraft-Export** (`.zip` mit Summary-`.txt`
 Die Daten werden lokal als JSON unter dem Electron-`userData`-Ordner gespeichert
 (`poker-data.json`). Importe sind idempotent (De-Duplizierung über die Turnier-ID).
 
+## Nutzung & Richtlinien (wichtig)
+
+Das Tool ist für die **private Offline-Auswertung der eigenen Spielergebnisse** gebaut und
+versucht bewusst, innerhalb der Tool-Richtlinien von PokerStars und GGPoker zu bleiben.
+
+**Bewusste Design-Einschränkungen — nicht entfernen:**
+
+- **Manueller Import, kein Datei-Watcher.** Dateien werden nur per Button eingelesen. Es gibt
+  bewusst kein `fs.watch`/Polling/Auto-Monitoring, damit der Charakter klar „nach der Session"
+  bleibt und nichts in Richtung Echtzeit-Nutzung geht.
+- **Kein Echtzeit-HUD / kein Overlay** über dem Pokertisch.
+- **Nur Hero-Daten.** Es werden ausschließlich die eigenen aggregierten Stats gespeichert,
+  **keine Gegner-Statistiken** und keine Roh-Hände (keine Massendatenanalyse).
+- **Lokal.** Keine Upload-/Sharing-Funktion für Hand-Histories oder PokerCraft-Daten.
+- **Nicht hinzufügen:** RTA/Solver, Equity-/Range-Rechner, Seating-Skripte, dynamische HUDs,
+  Daten-Export an Dritte.
+
+**Risiko-Einordnung:** PokerStars erlaubt Tools, die nur eigene Spieldaten nutzen
+(Post-Session-Analyse) → geringes Risiko. GGPoker ist deutlich restriktiver
+(Security & Ecology Policy verbietet 3rd-Party-Import von PokerCraft/HH-Daten breit) → der
+GGPoker-Import erfolgt **auf eigenes Risiko**; sanktionierter Weg ist PokerCraft selbst.
+Keine Rechtsberatung — aktuelle ToS der Anbieter selbst prüfen.
+
 ## Entwicklung
 
 ```bash

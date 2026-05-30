@@ -1,5 +1,6 @@
 import { useEffect, useMemo } from 'react'
 import { Toolbar } from './components/Toolbar'
+import { Disclaimer } from './components/Disclaimer'
 import { StatCards } from './components/StatCards'
 import { PlayStyle } from './components/PlayStyle'
 import { BankrollChart } from './components/BankrollChart'
@@ -84,6 +85,7 @@ export default function App(): JSX.Element {
 
   return (
     <div className="min-h-full">
+      <Disclaimer />
       <Toolbar />
       <main className="px-6 py-5 flex flex-col gap-5">
         {loading ? (
