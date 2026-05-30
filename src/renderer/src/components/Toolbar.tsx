@@ -22,7 +22,7 @@ function isoDaysAgo(days: number): string {
 }
 
 export function Toolbar(): JSX.Element {
-  const { settings, filters, busy } = useStore()
+  const { settings, filters, busy, lastScan } = useStore()
   const setFilters = useStore((s) => s.setFilters)
   const scanPokerStars = useStore((s) => s.scanPokerStars)
   const importGGPoker = useStore((s) => s.importGGPoker)
@@ -109,6 +109,8 @@ export function Toolbar(): JSX.Element {
             ändern
           </button>
         </div>
+
+        {lastScan && <div className="text-xs text-muted">Letzter Scan: {lastScan}</div>}
       </div>
       {busy && (
         <div className="px-6 pb-2 text-xs text-accent flex items-center gap-2">

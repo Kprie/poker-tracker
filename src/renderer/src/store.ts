@@ -38,6 +38,7 @@ interface State {
   tournaments: Tournament[]
   filters: Filters
   toast: { kind: 'ok' | 'err'; msg: string } | null
+  lastScan: string | null
 
   init: () => Promise<void>
   setFilters: (patch: Partial<Filters>) => void
@@ -55,6 +56,7 @@ export const useStore = create<State>((set, get) => ({
   tournaments: [],
   filters: { source: 'all', from: null, to: null },
   toast: null,
+  lastScan: null,
 
   init: async () => {
     const [settings, tournaments] = await Promise.all([
@@ -76,9 +78,12 @@ export const useStore = create<State>((set, get) => ({
     try {
       const res = await api.scanPokerStars()
       const tournaments = await api.getTournaments()
-      set({ tournaments })
+      const summary = `${res.filesScanned} Datei(en) gescannt · ${res.added} neu · ${res.updated} aktualisiert${res.skipped ? ` · ${res.skipped} übersprungen` : ''}${res.errors.length ? ` · ${res.errors.length} Fehler` : ''}`
+      set({ tournaments, lastScan: `${summary} — ${res.path || 'kein Pfad'}` })
       if (res.errors.length) {
         get().setToast({ kind: 'err', msg: res.errors[0] })
+      } else if (res.filesScanned === 0) {
+        get().setToast({ kind: 'err', msg: `Keine .txt-Dateien im Ordner gefunden: ${res.path || '(kein Pfad)'}` })
       } else {
         get().setToast({
           kind: 'ok',
@@ -86,6 +91,7 @@ export const useStore = create<State>((set, get) => ({
         })
       }
     } catch (e) {
+      set({ lastScan: `Fehler: ${(e as Error).message}` })
       get().setToast({ kind: 'err', msg: (e as Error).message })
     } finally {
       set({ busy: null })
