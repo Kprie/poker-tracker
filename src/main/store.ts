@@ -45,10 +45,17 @@ export function loadData(): AppData {
   if (existsSync(file)) {
     try {
       const parsed = JSON.parse(readFileSync(file, 'utf-8')) as AppData
+      // Migration: records saved before `resultKnown` existed were all summary
+      // imports (payout/finish known), so default missing values to true.
+      const tournaments = (parsed.tournaments ?? []).map((t) => ({
+        ...t,
+        resultKnown: t.resultKnown ?? true
+      }))
       cache = {
         settings: { ...DEFAULT_SETTINGS, ...parsed.settings },
-        tournaments: parsed.tournaments ?? []
+        tournaments
       }
+      saveData(cache)
       return cache
     } catch {
       // fall through to fresh data on corrupt file
