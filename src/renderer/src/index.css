@@ -1,3 +1,6 @@
+@import '@fontsource-variable/geist';
+@import '@fontsource-variable/geist-mono';
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -13,11 +16,38 @@ body,
   margin: 0;
 }
 
+html {
+  scroll-behavior: smooth;
+}
+
 body {
-  background: #0d1117;
-  color: #e6edf3;
-  font-family: Inter, 'Segoe UI', system-ui, sans-serif;
+  color: #e8edf4;
+  font-family: 'Geist Variable', 'Segoe UI', system-ui, sans-serif;
+  font-feature-settings: 'cv01', 'ss01';
   -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  /* Ambient depth: a cool base with two faint light pools instead of flat fill. */
+  background-color: #0b0e14;
+  background-image:
+    radial-gradient(900px 600px at 12% -8%, rgba(91, 157, 255, 0.08), transparent 60%),
+    radial-gradient(1100px 700px at 100% 0%, rgba(52, 211, 153, 0.05), transparent 55%);
+  background-attachment: fixed;
+}
+
+/* Fixed grain overlay to break digital flatness. */
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  opacity: 0.035;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+::selection {
+  background: rgba(91, 157, 255, 0.28);
 }
 
 ::-webkit-scrollbar {
@@ -25,32 +55,56 @@ body {
   height: 10px;
 }
 ::-webkit-scrollbar-thumb {
-  background: #2a313c;
+  background: #2b3340;
   border-radius: 6px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #38414f;
+  background-clip: padding-box;
 }
 ::-webkit-scrollbar-track {
   background: transparent;
 }
 
+.tabnum {
+  font-family: 'Geist Mono Variable', ui-monospace, monospace;
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum';
+}
+
 @layer components {
   .card {
-    @apply bg-surface border border-border rounded-xl;
+    @apply bg-surface border border-border rounded-2xl shadow-card;
   }
   .btn {
-    @apply inline-flex items-center gap-2 px-3.5 py-2 rounded-lg text-sm font-medium
-           transition-colors disabled:opacity-50 disabled:cursor-not-allowed select-none;
+    @apply inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-sm font-medium
+           transition-[transform,background-color,border-color,box-shadow] duration-200
+           active:scale-[0.97] disabled:opacity-50 disabled:cursor-not-allowed select-none;
   }
   .btn-primary {
-    @apply btn bg-accent text-white hover:bg-blue-500;
+    @apply btn bg-accent text-[#06122a] font-semibold hover:bg-accent-deep hover:shadow-glow;
   }
   .btn-ghost {
-    @apply btn bg-surface2 text-text hover:bg-border border border-border;
+    @apply btn bg-surface2 text-text border border-border hover:border-accent/50 hover:bg-border/60;
   }
   .chip {
-    @apply px-3 py-1.5 rounded-lg text-sm font-medium border border-border
-           bg-surface2 text-muted hover:text-text transition-colors;
+    @apply px-3 py-1.5 rounded-xl text-sm font-medium border border-border
+           bg-surface2 text-muted hover:text-text hover:border-border
+           transition-[transform,background-color,border-color,color] duration-200 active:scale-[0.97];
   }
   .chip-active {
-    @apply bg-accent/15 border-accent/60 text-text;
+    @apply bg-accent/15 border-accent/55 text-text;
   }
+}
+
+/* Visible keyboard focus everywhere, no focus ring on mouse press. */
+:focus-visible {
+  outline: 2px solid rgba(91, 157, 255, 0.7);
+  outline-offset: 2px;
+  border-radius: 8px;
+}
+:focus:not(:focus-visible) {
+  outline: none;
 }

@@ -87,7 +87,7 @@ export default function App(): JSX.Element {
     <div className="min-h-full">
       <Disclaimer />
       <Toolbar />
-      <main className="px-6 py-5 flex flex-col gap-5">
+      <main className="relative z-[2] mx-auto w-full max-w-[1440px] px-6 py-7 flex flex-col gap-6">
         {loading ? (
           <div className="py-24 text-center text-muted">Lädt…</div>
         ) : tournaments.length === 0 ? (

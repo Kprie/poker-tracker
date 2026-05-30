@@ -36,16 +36,19 @@ export function StatCards({ k }: Props): JSX.Element {
   return (
     <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
       {cards.map((c) => (
-        <div key={c.label} className="card p-4">
-          <div className="text-xs text-muted">{c.label}</div>
+        <div
+          key={c.label}
+          className="card p-4 transition-colors duration-200 hover:border-border/80"
+        >
+          <div className="text-[11px] uppercase tracking-wide text-muted/80">{c.label}</div>
           <div
-            className={`mt-1 text-xl font-semibold tabular-nums ${
+            className={`tabnum mt-1.5 text-[1.7rem] leading-none font-semibold tracking-tight ${
               c.tone === 'profit' ? 'text-profit' : c.tone === 'loss' ? 'text-loss' : 'text-text'
             }`}
           >
             {c.value}
           </div>
-          {c.sub && <div className="mt-0.5 text-xs text-muted">{c.sub}</div>}
+          {c.sub && <div className="mt-1.5 text-xs text-muted">{c.sub}</div>}
         </div>
       ))}
     </div>

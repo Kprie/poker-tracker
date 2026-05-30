@@ -40,9 +40,14 @@ export function TournamentTable({ rows }: Props): JSX.Element {
 
   return (
     <div className="card overflow-hidden">
-      <div className="px-5 py-3 border-b border-border flex items-center justify-between">
-        <h2 className="text-sm font-semibold">Turniere</h2>
-        <span className="text-xs text-muted">{rows.length} Einträge</span>
+      <div className="px-5 py-3.5 border-b border-border flex items-center justify-between">
+        <h2 className="flex items-center gap-2.5 text-sm font-semibold tracking-tight">
+          <span className="h-3.5 w-1 rounded-full bg-accent" />
+          Turniere
+        </h2>
+        <span className="text-xs text-muted">
+          <span className="tabnum text-text">{rows.length}</span> Einträge
+        </span>
       </div>
       <div className="overflow-auto max-h-[480px]">
         <table className="w-full text-sm">
@@ -79,18 +84,18 @@ export function TournamentTable({ rows }: Props): JSX.Element {
                     {t.source === 'pokerstars' ? 'Stars' : 'GG'}
                   </span>
                 </td>
-                <td className="px-3 py-2 text-right tabular-nums">{money(t.buyIn + t.fee)}</td>
-                <td className="px-3 py-2 text-right tabular-nums text-muted">
+                <td className="px-3 py-2 text-right tabnum">{money(t.buyIn + t.fee)}</td>
+                <td className="px-3 py-2 text-right tabnum text-muted">
                   {t.fieldSize ?? '—'}
                 </td>
-                <td className="px-3 py-2 text-right tabular-nums text-muted">
+                <td className="px-3 py-2 text-right tabnum text-muted">
                   {t.finishPlace ?? '—'}
                 </td>
-                <td className="px-3 py-2 text-right tabular-nums">
+                <td className="px-3 py-2 text-right tabnum">
                   {t.resultKnown ? money(t.payout) : <span className="text-muted">—</span>}
                 </td>
                 <td
-                  className={`px-3 py-2 text-right tabular-nums font-medium ${
+                  className={`px-3 py-2 text-right tabnum font-medium ${
                     !t.resultKnown
                       ? 'text-muted'
                       : t.profit > 0

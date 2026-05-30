@@ -31,20 +31,27 @@ export function PlayStyle({ s }: Props): JSX.Element | null {
   return (
     <div>
       <div className="flex items-baseline justify-between mb-3">
-        <h2 className="text-sm font-semibold text-text">
+        <h2 className="flex items-center gap-2.5 text-sm font-semibold tracking-tight text-text">
+          <span className="h-3.5 w-1 rounded-full bg-accent" />
           Spielstil <span className="text-muted font-normal">· aus Hand-Histories</span>
         </h2>
         <span className="text-xs text-muted">
-          {s.hands.toLocaleString('de-DE')} Hände · {s.tournaments} Turniere ·{' '}
+          <span className="tabnum text-text">{s.hands.toLocaleString('de-DE')}</span> Hände ·{' '}
+          <span className="tabnum text-text">{s.tournaments}</span> Turniere ·{' '}
           <span className="text-text">{styleLabel(s.vpip, s.pfr)}</span>
         </span>
       </div>
       <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
         {cards.map((c) => (
-          <div key={c.label} className="card p-4">
-            <div className="text-xs text-muted">{c.label}</div>
-            <div className="mt-1 text-xl font-semibold tabular-nums text-text">{c.value}</div>
-            {c.hint && <div className="mt-0.5 text-xs text-muted">{c.hint}</div>}
+          <div
+            key={c.label}
+            className="card p-4 transition-colors duration-200 hover:border-border/80"
+          >
+            <div className="text-[11px] uppercase tracking-wide text-muted/80">{c.label}</div>
+            <div className="tabnum mt-1.5 text-[1.7rem] leading-none font-semibold tracking-tight text-text">
+              {c.value}
+            </div>
+            {c.hint && <div className="mt-1.5 text-xs text-muted">{c.hint}</div>}
           </div>
         ))}
       </div>

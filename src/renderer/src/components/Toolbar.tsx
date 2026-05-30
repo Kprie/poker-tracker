@@ -39,12 +39,12 @@ export function Toolbar(): JSX.Element {
       <div className="px-6 pt-5 pb-4 flex flex-col gap-4">
         <div className="flex items-center justify-between gap-4 flex-wrap">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-accent/20 grid place-items-center text-accent text-lg">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-b from-accent/25 to-accent/5 border border-accent/30 grid place-items-center text-accent text-xl shadow-glow">
               ♠
             </div>
             <div>
-              <h1 className="text-lg font-semibold leading-tight">Poker Tracker</h1>
-              <p className="text-xs text-muted">Turnier-Statistiken · PokerStars &amp; GGPoker</p>
+              <h1 className="text-xl font-semibold leading-none tracking-tightest">Poker Tracker</h1>
+              <p className="mt-1 text-xs text-muted">Turnier-Statistiken · PokerStars &amp; GGPoker</p>
             </div>
           </div>
 

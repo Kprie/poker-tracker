@@ -17,13 +17,16 @@ interface Props {
 export function BankrollChart({ data }: Props): JSX.Element {
   const last = data.length ? data[data.length - 1].cumulative : 0
   const positive = last >= 0
-  const color = positive ? '#22c55e' : '#ef4444'
+  const color = positive ? '#34d399' : '#f76d6d'
 
   return (
     <div className="card p-5">
       <div className="flex items-center justify-between mb-3">
-        <h2 className="text-sm font-semibold text-text">Bankroll-Verlauf</h2>
-        <span className={`text-sm font-semibold tabular-nums ${positive ? 'text-profit' : 'text-loss'}`}>
+        <h2 className="flex items-center gap-2.5 text-sm font-semibold tracking-tight text-text">
+          <span className="h-3.5 w-1 rounded-full bg-accent" />
+          Bankroll-Verlauf
+        </h2>
+        <span className={`text-base font-semibold tabnum ${positive ? 'text-profit' : 'text-loss'}`}>
           {money(last)}
         </span>
       </div>
@@ -36,17 +39,17 @@ export function BankrollChart({ data }: Props): JSX.Element {
                 <stop offset="100%" stopColor={color} stopOpacity={0} />
               </linearGradient>
             </defs>
-            <CartesianGrid strokeDasharray="3 3" stroke="#2a313c" vertical={false} />
+            <CartesianGrid strokeDasharray="3 3" stroke="#262e3b" vertical={false} />
             <XAxis
               dataKey="index"
-              stroke="#8b95a5"
-              tick={{ fontSize: 11 }}
+              stroke="#8a94a6"
+              tick={{ fontSize: 11, fontFamily: "'Geist Mono Variable', ui-monospace, monospace" }}
               tickLine={false}
-              axisLine={{ stroke: '#2a313c' }}
+              axisLine={{ stroke: '#262e3b' }}
             />
             <YAxis
-              stroke="#8b95a5"
-              tick={{ fontSize: 11 }}
+              stroke="#8a94a6"
+              tick={{ fontSize: 11, fontFamily: "'Geist Mono Variable', ui-monospace, monospace" }}
               tickLine={false}
               axisLine={false}
               width={64}
@@ -54,12 +57,12 @@ export function BankrollChart({ data }: Props): JSX.Element {
             />
             <Tooltip
               contentStyle={{
-                background: '#161b22',
-                border: '1px solid #2a313c',
+                background: '#141922',
+                border: '1px solid #262e3b',
                 borderRadius: 10,
                 fontSize: 12
               }}
-              labelStyle={{ color: '#8b95a5' }}
+              labelStyle={{ color: '#8a94a6' }}
               formatter={(value: number, name) => [money(value), name === 'cumulative' ? 'Bankroll' : name]}
               labelFormatter={(_l, payload) => {
                 const p = payload?.[0]?.payload as BankrollPoint | undefined
