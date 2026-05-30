@@ -52,9 +52,9 @@ export function TournamentTable({ rows }: Props): JSX.Element {
               <th className="px-3 py-2 font-medium">Turnier</th>
               <th className="px-3 py-2 font-medium">Quelle</th>
               <Th k="buyIn" label="Buy-in" className="text-right" />
-              <Th k="fieldSize" label="Teilnehmer" className="text-right" />
-              <Th k="finishPlace" label="Platzierung" className="text-right" />
-              <th className="px-3 py-2 font-medium text-right">Auszahlung</th>
+              <Th k="fieldSize" label="Entries" className="text-right" />
+              <Th k="finishPlace" label="Finish" className="text-right" />
+              <th className="px-3 py-2 font-medium text-right">Payout</th>
               <Th k="profit" label="Profit" className="text-right" />
             </tr>
           </thead>

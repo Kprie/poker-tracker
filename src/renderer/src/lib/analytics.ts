@@ -183,10 +183,10 @@ export function byBuyIn(rows: Tournament[]): GroupStat[] {
 }
 
 const SPEED_LABEL: Record<string, string> = {
-  regular: 'Normal',
+  regular: 'Regular',
   turbo: 'Turbo',
   hyper: 'Hyper',
-  unknown: 'Unbekannt'
+  unknown: 'Unknown'
 }
 
 export function bySpeed(rows: Tournament[]): GroupStat[] {
