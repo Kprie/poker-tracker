@@ -89,7 +89,7 @@ export function Breakdown({ byBuyIn, bySpeed, byWeekday, byHour }: Props): JSX.E
       <h2 className="text-sm font-semibold text-text mb-3">Spieltendenzen</h2>
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-3">
         <GroupBarChart title="ROI nach Buy-in-Stufe" data={byBuyIn} metric="roi" hint="ergebnisbasiert" />
-        <GroupBarChart title="Profit nach Speed" data={bySpeed} metric="profit" />
+        <GroupBarChart title="Profit nach Tempo" data={bySpeed} metric="profit" />
         <GroupBarChart title="Profit nach Wochentag" data={byWeekday} metric="profit" />
         <GroupBarChart title="Profit nach Uhrzeit" data={byHour} metric="profit" hint="Startstunde" />
       </div>

@@ -182,8 +182,15 @@ export function byBuyIn(rows: Tournament[]): GroupStat[] {
   return groupBy(rows, buyInBracket).sort((a, b) => order.indexOf(a.key) - order.indexOf(b.key))
 }
 
+const SPEED_LABEL: Record<string, string> = {
+  regular: 'Normal',
+  turbo: 'Turbo',
+  hyper: 'Hyper',
+  unknown: 'Unbekannt'
+}
+
 export function bySpeed(rows: Tournament[]): GroupStat[] {
-  return groupBy(rows, (t) => t.speed).sort((a, b) => b.count - a.count)
+  return groupBy(rows, (t) => SPEED_LABEL[t.speed] ?? t.speed).sort((a, b) => b.count - a.count)
 }
 
 export function byGameType(rows: Tournament[]): GroupStat[] {
