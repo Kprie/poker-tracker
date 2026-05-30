@@ -18,6 +18,76 @@ von **PokerStars** und **GGPoker**.
   Wochentag und Startuhrzeit.
 - **Turnier-Tabelle** mit Sortierung.
 
+## Anleitung für Nutzer
+
+### 1. App starten
+
+Es gibt (noch) keinen fertigen Installer – die App wird aus dem Quellcode gestartet.
+Einmalig benötigt: [Node.js](https://nodejs.org) (Version 20 oder neuer).
+
+```bash
+git clone https://github.com/Kprie/poker-tracker.git
+cd poker-tracker
+npm install        # einmalig, lädt alle Abhängigkeiten
+npm run dev        # startet die App
+```
+
+Beim Start öffnet sich das Programmfenster. Ein einmaliger Nutzungs-Hinweis erscheint –
+einmal mit **„Verstanden"** bestätigen.
+
+> Optional: `npm run build:win` erzeugt einen Windows-Installer (`.exe`) im Ordner `dist/`,
+> mit dem sich die App ganz normal installieren lässt.
+
+### 2. PokerStars vorbereiten
+
+Damit Daten vorhanden sind, müssen im PokerStars-Client die Verläufe gespeichert werden:
+
+1. PokerStars öffnen → **Einstellungen** → **Hand-History** (bzw. „Verlauf speichern").
+2. **„Meine Hand-Historie speichern"** aktivieren. Tournament-Summaries werden automatisch
+   gespeichert.
+3. Standard-Speicherort unter Windows (enthält beide Unterordner `HandHistory` und
+   `TournSummary`):
+   ```
+   C:\Users\<DEINNAME>\AppData\Local\PokerStars\
+   ```
+
+> Tipp: Auf den **übergeordneten** `PokerStars`-Ordner zeigen, nicht nur auf einen Unterordner –
+> die App durchsucht ihn rekursiv und findet so Summaries **und** Hand-Histories.
+
+### 3. GGPoker / PokerCraft exportieren
+
+1. GGPoker-Client öffnen → **PokerCraft** → **Game History / Tournaments**.
+2. Die gewünschten Turniere bzw. den Zeitraum auswählen.
+3. Auf **Download / Export** klicken – du erhältst eine **`.zip`-Datei** mit je einer
+   `.txt`-Summary pro Turnier (oder einzelne `.txt`-Dateien). Diese Datei merken/ablegen.
+
+### 4. Daten importieren
+
+Oben rechts in der App:
+
+- **„PokerStars einlesen"** – nutzt den eingestellten Ordner (oben links angezeigt). Mit
+  **„ändern"** lässt sich der Ordner wechseln; der Standardort wird automatisch erkannt.
+  Nach dem Klick erscheint unter dem Pfad eine Zeile *„Letzter Scan: … Datei(en) gescannt"*.
+- **„PokerCraft hochladen"** – im Dateidialog die heruntergeladene GGPoker-`.zip` (oder
+  `.txt`-Dateien) auswählen.
+
+Importe sind wiederholbar: Bereits vorhandene Turniere werden erkannt und aktualisiert,
+nicht doppelt gezählt. Du kannst also jederzeit neue Dateien nachladen.
+
+### 5. Auswerten
+
+- **Quelle filtern:** Buttons **Alle / PokerStars / GGPoker** oben links.
+- **Zeitraum wählen:** Presets **7T / 30T / 90T / 1J / Alle** oder die beiden Datumsfelder
+  für einen eigenen Bereich.
+- Darunter erscheinen automatisch: **Kennzahlen** (Profit, ROI, ITM …), **Spielstil**
+  (VPIP/PFR/3-Bet/AF/WTSD/W$SD – nur aus PokerStars-Hand-Histories), **Bankroll-Verlauf**,
+  **Tendenzen-Diagramme** und die sortierbare **Turnier-Tabelle** (Spaltenkopf klicken =
+  sortieren).
+
+> Hinweis: Turniere, von denen nur eine Hand-History (ohne Summary) vorliegt, zeigen
+> **Payout/Profit** als „—", weil das Geld-Ergebnis dort nicht enthalten ist. Sie fließen
+> trotzdem in die Spielstil-Statistiken ein.
+
 ## Dateitypen & Zusammenführung
 
 PokerStars erzeugt zwei Dateitypen, die unterschiedliche Informationen liefern:
