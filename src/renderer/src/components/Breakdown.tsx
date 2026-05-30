@@ -10,51 +10,54 @@ import {
 } from 'recharts'
 import type { GroupStat } from '../lib/analytics'
 import { money, pct } from '../lib/format'
+import { Panel } from './Panel'
+
+const MONO = "'Geist Mono Variable', ui-monospace, monospace"
 
 interface ChartProps {
   title: string
   data: GroupStat[]
-  /** which metric to plot as bars */
   metric: 'profit' | 'roi'
   hint?: string
 }
 
 function GroupBarChart({ title, data, metric, hint }: ChartProps): JSX.Element {
   return (
-    <div className="card p-5">
+    <div className="tile p-4">
       <div className="mb-1 flex items-baseline justify-between">
         <h3 className="text-sm font-semibold tracking-tight text-text">{title}</h3>
-        {hint && <span className="text-xs text-muted">{hint}</span>}
+        {hint && <span className="text-[11px] text-muted">{hint}</span>}
       </div>
-      <div className="h-56">
+      <div className="h-52">
         <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={data} margin={{ top: 8, right: 8, bottom: 0, left: 8 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#262e3b" vertical={false} />
+          <BarChart data={data} margin={{ top: 8, right: 6, bottom: 0, left: 4 }}>
+            <CartesianGrid strokeDasharray="2 4" stroke="rgba(255,255,255,0.06)" vertical={false} />
             <XAxis
               dataKey="key"
-              stroke="#8a94a6"
-              tick={{ fontSize: 11, fontFamily: "'Geist Mono Variable', ui-monospace, monospace" }}
+              stroke="rgba(255,255,255,0.25)"
+              tick={{ fontSize: 11, fill: '#8b95a8', fontFamily: MONO }}
               tickLine={false}
-              axisLine={{ stroke: '#262e3b' }}
+              axisLine={false}
               interval={0}
             />
             <YAxis
-              stroke="#8a94a6"
-              tick={{ fontSize: 11, fontFamily: "'Geist Mono Variable', ui-monospace, monospace" }}
+              stroke="rgba(255,255,255,0.25)"
+              tick={{ fontSize: 11, fill: '#8b95a8', fontFamily: MONO }}
               tickLine={false}
               axisLine={false}
-              width={56}
+              width={54}
               tickFormatter={(v) => (metric === 'roi' ? pct(v) : money(v))}
             />
             <Tooltip
-              cursor={{ fill: '#ffffff0a' }}
+              cursor={{ fill: 'rgba(255,255,255,0.04)' }}
               contentStyle={{
-                background: '#141922',
-                border: '1px solid #262e3b',
-                borderRadius: 10,
-                fontSize: 12
+                background: 'rgba(16,20,28,0.92)',
+                border: '1px solid rgba(255,255,255,0.1)',
+                borderRadius: 14,
+                fontSize: 12,
+                boxShadow: '0 16px 40px -16px rgba(0,0,0,0.8)'
               }}
-              labelStyle={{ color: '#8a94a6' }}
+              labelStyle={{ color: '#8b95a8' }}
               formatter={(value: number) => [
                 metric === 'roi' ? pct(value) : money(value),
                 metric === 'roi' ? 'ROI' : 'Profit'
@@ -64,9 +67,9 @@ function GroupBarChart({ title, data, metric, hint }: ChartProps): JSX.Element {
                 return p ? `${label} · ${p.count} Turniere · ITM ${pct(p.itmRate)}` : String(label)
               }}
             />
-            <Bar dataKey={metric} radius={[4, 4, 0, 0]}>
+            <Bar dataKey={metric} radius={[6, 6, 2, 2]} maxBarSize={64}>
               {data.map((d) => (
-                <Cell key={d.key} fill={d[metric] >= 0 ? '#34d399' : '#f76d6d'} />
+                <Cell key={d.key} fill={d[metric] >= 0 ? '#3ddc97' : '#ff6b6b'} />
               ))}
             </Bar>
           </BarChart>
@@ -85,17 +88,13 @@ interface Props {
 
 export function Breakdown({ byBuyIn, bySpeed, byWeekday, byHour }: Props): JSX.Element {
   return (
-    <div>
-      <h2 className="flex items-center gap-2.5 text-sm font-semibold tracking-tight text-text mb-3">
-        <span className="h-3.5 w-1 rounded-full bg-accent" />
-        Spieltendenzen
-      </h2>
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-3">
-        <GroupBarChart title="ROI nach Buy-in-Stufe" data={byBuyIn} metric="roi" hint="ergebnisbasiert" />
+    <Panel title="Spieltendenzen" aside="ergebnisbasiert">
+      <div className="grid grid-cols-1 gap-2.5 xl:grid-cols-2">
+        <GroupBarChart title="ROI nach Buy-in-Stufe" data={byBuyIn} metric="roi" />
         <GroupBarChart title="Profit nach Speed" data={bySpeed} metric="profit" />
         <GroupBarChart title="Profit nach Wochentag" data={byWeekday} metric="profit" />
         <GroupBarChart title="Profit nach Uhrzeit" data={byHour} metric="profit" hint="Startstunde" />
       </div>
-    </div>
+    </Panel>
   )
 }

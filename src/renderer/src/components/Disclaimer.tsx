@@ -72,9 +72,11 @@ export function Disclaimer(): JSX.Element | null {
   }
 
   return (
-    <div className="fixed inset-0 z-50 grid place-items-center bg-black/60 backdrop-blur-sm p-4">
-      <div className="card max-w-lg w-full p-6">
-        <h2 className="text-lg font-semibold mb-2">Hinweis zur Nutzung</h2>
+    <div className="fixed inset-0 z-modal grid place-items-center bg-black/70 p-4 backdrop-blur-md">
+      <div className="bezel w-full max-w-lg">
+       <div className="glass p-6">
+        <span className="eyebrow mb-4">Hinweis zur Nutzung</span>
+        <h2 className="mb-2 mt-3 text-xl font-semibold tracking-tightest">Private Offline-Nutzung</h2>
         <p className="text-sm text-muted mb-5 leading-relaxed">
           Dieses Tool ist ausschließlich für die{' '}
           <span className="text-text">private Offline-Auswertung deiner eigenen Spielergebnisse</span>{' '}
@@ -97,10 +99,11 @@ export function Disclaimer(): JSX.Element | null {
         </p>
 
         <div className="flex justify-end">
-          <button className="btn-primary" onClick={accept}>
+          <button className="btn-primary !pr-5" onClick={accept}>
             Verstanden
           </button>
         </div>
+       </div>
       </div>
     </div>
   )

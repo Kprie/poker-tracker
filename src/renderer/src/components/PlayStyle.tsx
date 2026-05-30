@@ -1,5 +1,7 @@
 import type { PlayStyle as PlayStyleData } from '../lib/analytics'
 import { pct } from '../lib/format'
+import { Panel } from './Panel'
+import { KpiTile } from './KpiTile'
 
 interface Props {
   s: PlayStyleData
@@ -7,10 +9,10 @@ interface Props {
 
 /** Rough qualitative label for a VPIP/PFR pairing. */
 function styleLabel(vpip: number, pfr: number): string {
+  if (vpip === 0) return '—'
   const gap = vpip - pfr
   const tight = vpip < 0.24
   const aggressive = pfr / Math.max(vpip, 0.0001) > 0.7
-  if (vpip === 0) return '—'
   const looseness = tight ? 'Tight' : vpip > 0.4 ? 'Very Loose' : 'Loose'
   const passivity = aggressive ? 'Aggressive' : gap > 0.12 ? 'Passive' : 'Aggressive'
   return `${looseness}-${passivity}`
@@ -29,32 +31,27 @@ export function PlayStyle({ s }: Props): JSX.Element | null {
   ]
 
   return (
-    <div>
-      <div className="flex items-baseline justify-between mb-3">
-        <h2 className="flex items-center gap-2.5 text-sm font-semibold tracking-tight text-text">
-          <span className="h-3.5 w-1 rounded-full bg-accent" />
-          Spielstil <span className="text-muted font-normal">· aus Hand-Histories</span>
-        </h2>
-        <span className="text-xs text-muted">
+    <Panel
+      title={
+        <>
+          Spielstil <span className="font-normal text-muted">· aus Hand-Histories</span>
+        </>
+      }
+      aside={
+        <>
           <span className="tabnum text-text">{s.hands.toLocaleString('de-DE')}</span> Hände ·{' '}
           <span className="tabnum text-text">{s.tournaments}</span> Turniere ·{' '}
-          <span className="text-text">{styleLabel(s.vpip, s.pfr)}</span>
-        </span>
-      </div>
-      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
+          <span className="rounded-full bg-accent/15 px-2 py-0.5 text-accent">
+            {styleLabel(s.vpip, s.pfr)}
+          </span>
+        </>
+      }
+    >
+      <div className="grid grid-cols-2 gap-2.5 md:grid-cols-3 xl:grid-cols-6">
         {cards.map((c) => (
-          <div
-            key={c.label}
-            className="card p-4 transition-colors duration-200 hover:border-border/80"
-          >
-            <div className="text-[11px] uppercase tracking-wide text-muted/80">{c.label}</div>
-            <div className="tabnum mt-1.5 text-[1.7rem] leading-none font-semibold tracking-tight text-text">
-              {c.value}
-            </div>
-            {c.hint && <div className="mt-1.5 text-xs text-muted">{c.hint}</div>}
-          </div>
+          <KpiTile key={c.label} label={c.label} value={c.value} sub={c.hint} />
         ))}
       </div>
-    </div>
+    </Panel>
   )
 }

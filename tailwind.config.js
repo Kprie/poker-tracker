@@ -4,37 +4,45 @@ export default {
   theme: {
     extend: {
       colors: {
-        bg: '#0b0e14',
-        surface: '#141922',
-        surface2: '#1a212c',
-        border: '#262e3b',
-        muted: '#8a94a6',
-        text: '#e8edf4',
-        accent: '#5b9dff',
-        'accent-deep': '#3f7fe0',
-        profit: '#34d399',
-        loss: '#f76d6d',
+        bg: '#07090d',
+        surface: '#10141c',
+        surface2: '#161b25',
+        border: '#222936',
+        muted: '#8b95a8',
+        text: '#eef2f8',
+        accent: '#6aa6ff',
+        'accent-deep': '#4d8af0',
+        ink: '#05101f',
+        profit: '#3ddc97',
+        loss: '#ff6b6b',
         ps: '#e0524a',
-        gg: '#ff9d3c'
+        gg: '#ffa23c'
       },
       fontFamily: {
         sans: ['Geist Variable', 'Geist', 'Segoe UI', 'system-ui', 'sans-serif'],
         mono: ['Geist Mono Variable', 'Geist Mono', 'ui-monospace', 'monospace']
       },
       letterSpacing: {
-        tightest: '-0.04em'
+        tightest: '-0.045em',
+        eyebrow: '0.22em'
+      },
+      borderRadius: {
+        bezel: '1.75rem',
+        core: 'calc(1.75rem - 0.375rem)'
+      },
+      transitionTimingFunction: {
+        fluid: 'cubic-bezier(0.32, 0.72, 0, 1)'
       },
       boxShadow: {
-        // Tinted to the cool dark background instead of pure black.
-        card: '0 1px 0 0 rgba(255,255,255,0.045) inset, 0 12px 30px -18px rgba(3,7,18,0.9)',
-        pop: '0 1px 0 0 rgba(255,255,255,0.06) inset, 0 18px 40px -16px rgba(3,7,18,0.95)',
-        glow: '0 0 0 1px rgba(91,157,255,0.35), 0 8px 28px -10px rgba(91,157,255,0.35)'
+        ambient: '0 24px 60px -28px rgba(0,0,0,0.85)',
+        glow: '0 0 0 1px rgba(106,166,255,0.30), 0 10px 40px -12px rgba(106,166,255,0.35)',
+        'inset-hi': 'inset 0 1px 0 0 rgba(255,255,255,0.08)'
       },
       zIndex: {
-        nav: '10',
+        nav: '30',
         overlay: '40',
         modal: '50',
-        toast: '60'
+        grain: '60'
       }
     }
   },
