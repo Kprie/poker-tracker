@@ -86,13 +86,25 @@ export function TournamentTable({ rows }: Props): JSX.Element {
                 <td className="px-3 py-2 text-right tabular-nums text-muted">
                   {t.finishPlace ?? '—'}
                 </td>
-                <td className="px-3 py-2 text-right tabular-nums">{money(t.payout)}</td>
+                <td className="px-3 py-2 text-right tabular-nums">
+                  {t.resultKnown ? money(t.payout) : <span className="text-muted">—</span>}
+                </td>
                 <td
                   className={`px-3 py-2 text-right tabular-nums font-medium ${
-                    t.profit > 0 ? 'text-profit' : t.profit < 0 ? 'text-loss' : 'text-muted'
+                    !t.resultKnown
+                      ? 'text-muted'
+                      : t.profit > 0
+                        ? 'text-profit'
+                        : t.profit < 0
+                          ? 'text-loss'
+                          : 'text-muted'
                   }`}
                 >
-                  {money(t.profit)}
+                  {t.resultKnown ? (
+                    money(t.profit)
+                  ) : (
+                    <span title="Nur Hand-History – Ergebnis unbekannt">—</span>
+                  )}
                 </td>
               </tr>
             ))}

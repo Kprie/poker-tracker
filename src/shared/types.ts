@@ -36,9 +36,48 @@ export interface Tournament {
   addons: number
   /** payout - totalCost. */
   profit: number
+  /**
+   * True when the money result (payout/finish place) is known — i.e. it came
+   * from a tournament summary. Records built only from hand histories know the
+   * buy-in but not the payout, so they are excluded from profit/ROI/ITM stats.
+   */
+  resultKnown: boolean
+  /** Aggregated hero play stats, present when hand histories were imported. */
+  handStats?: HandStatsAgg
 }
 
 export type TournamentSpeed = 'regular' | 'turbo' | 'hyper' | 'unknown'
+
+/**
+ * Aggregated hero hand-history stats for one tournament. All fields are raw
+ * counts so they can be summed across tournaments; rates are derived in the UI.
+ */
+export interface HandStatsAgg {
+  /** Hero screen name detected from the "Dealt to" line. */
+  hero: string
+  /** Total hands the hero was dealt into. */
+  hands: number
+  /** Hands where hero voluntarily put money in pot preflop (call/bet/raise). */
+  vpip: number
+  /** Hands where hero raised preflop. */
+  pfr: number
+  /** Hands where hero faced a preflop raise and could re-raise. */
+  threeBetOpp: number
+  /** Hands where hero 3-bet (re-raised) preflop. */
+  threeBet: number
+  /** Hands where hero saw the flop. */
+  sawFlop: number
+  /** Hands where hero went to showdown. */
+  wtsd: number
+  /** Hands where hero won money at showdown. */
+  wonSd: number
+  /** Hands where hero won any pot. */
+  wonHand: number
+  /** Postflop aggressive actions (bets + raises). */
+  aggActions: number
+  /** Postflop passive calls. */
+  callActions: number
+}
 
 export interface ImportResult {
   source: PokerSource

@@ -21,6 +21,12 @@ export function detectPokerStarsPath(): string | null {
   const docs = join(home, 'Documents')
   const clients = ['PokerStars', 'PokerStarsEU', 'PokerStars.EU', 'PokerStarsNET', 'PokerStars.NET']
   const candidates: string[] = []
+  // Prefer the client root (contains both HandHistory and TournSummary) so a
+  // recursive scan picks up results and play stats in one go.
+  for (const c of clients) {
+    candidates.push(join(docs, c))
+    candidates.push(join(localAppData, c))
+  }
   for (const c of clients) {
     candidates.push(join(localAppData, c, 'TournSummary'))
     candidates.push(join(docs, c, 'TournSummary'))
@@ -77,7 +83,39 @@ export function getTournaments(): Tournament[] {
 }
 
 /**
- * Merge new tournaments into storage, de-duplicating by id.
+ * Combine two records for the same tournament. A summary contributes the money
+ * result (payout/finish/field/cost incl. re-entries); a hand-history record
+ * contributes play stats and the buy-in. We keep the best of each.
+ */
+function mergeTournament(a: Tournament, b: Tournament): Tournament {
+  // Pick the record that carries the money result as the money base.
+  const moneyBase = b.resultKnown ? b : a.resultKnown ? a : b
+  const other = moneyBase === b ? a : b
+  return {
+    ...moneyBase,
+    // Prefer a non-"Unknown" game type / richer name.
+    gameType: moneyBase.gameType !== 'Unknown' ? moneyBase.gameType : other.gameType,
+    name: moneyBase.gameType !== 'Unknown' ? moneyBase.name : other.name,
+    speed: moneyBase.speed !== 'unknown' ? moneyBase.speed : other.speed,
+    fieldSize: moneyBase.fieldSize ?? other.fieldSize,
+    // Keep an earlier known start date if the money base lacks one.
+    startDate: earliestValidDate(moneyBase.startDate, other.startDate),
+    // Hand stats come from whichever record has them (the HH import).
+    handStats: b.handStats ?? a.handStats,
+    resultKnown: a.resultKnown || b.resultKnown
+  }
+}
+
+function earliestValidDate(a: string, b: string): string {
+  const epoch = new Date(0).toISOString().slice(0, 10)
+  const aValid = a.slice(0, 10) !== epoch
+  const bValid = b.slice(0, 10) !== epoch
+  if (aValid && bValid) return a < b ? a : b
+  return aValid ? a : bValid ? b : a
+}
+
+/**
+ * Merge new tournaments into storage, de-duplicating and merging by id.
  * Returns counts of added vs updated records.
  */
 export function upsertTournaments(incoming: Tournament[]): { added: number; updated: number } {
@@ -86,8 +124,9 @@ export function upsertTournaments(incoming: Tournament[]): { added: number; upda
   let added = 0
   let updated = 0
   for (const t of incoming) {
-    if (byId.has(t.id)) {
-      byId.set(t.id, t)
+    const existing = byId.get(t.id)
+    if (existing) {
+      byId.set(t.id, mergeTournament(existing, t))
       updated++
     } else {
       byId.set(t.id, t)

@@ -16,8 +16,11 @@ export function StatCards({ k }: Props): JSX.Element {
   const profitTone = k.profit > 0 ? 'profit' : k.profit < 0 ? 'loss' : 'neutral'
   const roiTone = k.roi > 0 ? 'profit' : k.roi < 0 ? 'loss' : 'neutral'
 
+  const resultNote =
+    k.resultCount < k.count ? `${k.resultCount}/${k.count} mit Ergebnis` : `${k.count} Turniere`
+
   const cards: Card[] = [
-    { label: 'Netto-Profit', value: money(k.profit), tone: profitTone, sub: `${k.count} Turniere` },
+    { label: 'Netto-Profit', value: money(k.profit), tone: profitTone, sub: resultNote },
     { label: 'ROI', value: pct(k.roi), tone: roiTone, sub: `Ø Buy-in ${money(k.avgBuyIn)}` },
     { label: 'Buy-ins gesamt', value: money(k.totalCost), tone: 'neutral' },
     { label: 'Auszahlungen', value: money(k.totalPayout), tone: 'neutral' },

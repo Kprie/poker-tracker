@@ -6,6 +6,35 @@ import type { AppSettings, ImportResult, PokerStarsScanResult, Tournament } from
 import { parseGGPokerSummaries } from './parsers/ggpoker'
 import { parsePokerStarsSummaries } from './parsers/pokerstars'
 import {
+  aggregateHands,
+  isPokerStarsHandHistory,
+  parsePokerStarsHands,
+  type HandResult
+} from './parsers/pokerstars-hh'
+
+/** Recursively collect .txt file paths under a directory (depth-limited). */
+function walkTxtFiles(dir: string, depth = 0, acc: string[] = []): string[] {
+  if (depth > 6) return acc
+  let names: string[]
+  try {
+    names = readdirSync(dir)
+  } catch {
+    return acc
+  }
+  for (const name of names) {
+    const full = join(dir, name)
+    let isDir = false
+    try {
+      isDir = statSync(full).isDirectory()
+    } catch {
+      continue
+    }
+    if (isDir) walkTxtFiles(full, depth + 1, acc)
+    else if (extname(name).toLowerCase() === '.txt') acc.push(full)
+  }
+  return acc
+}
+import {
   clearTournaments,
   getSettings,
   getTournaments,
@@ -64,28 +93,31 @@ export function registerIpc(): void {
     }
 
     const collected: Tournament[] = []
-    let files: string[] = []
-    try {
-      files = readdirSync(path)
-        .filter((f) => extname(f).toLowerCase() === '.txt')
-        .map((f) => join(path, f))
-    } catch (err) {
-      base.errors.push(`Ordner konnte nicht gelesen werden: ${(err as Error).message}`)
-      return base
-    }
+    const handResults: HandResult[] = []
+    const files = walkTxtFiles(path)
 
     for (const file of files) {
       try {
-        if (!statSync(file).isFile()) continue
         base.filesScanned++
         const content = readFileSync(file, 'utf-8')
-        const parsed = parsePokerStarsSummaries(content)
-        if (parsed.length === 0) base.skipped++
-        collected.push(...parsed)
+        // Auto-detect: hand history (per-hand actions) vs tournament summary.
+        if (isPokerStarsHandHistory(content)) {
+          const hands = parsePokerStarsHands(content)
+          if (hands.length === 0) base.skipped++
+          handResults.push(...hands)
+        } else {
+          const parsed = parsePokerStarsSummaries(content)
+          if (parsed.length === 0) base.skipped++
+          collected.push(...parsed)
+        }
       } catch (err) {
         base.errors.push(`${file}: ${(err as Error).message}`)
       }
     }
+
+    // Aggregate hands across ALL files once (de-duped by hand id) so a
+    // tournament spread over multiple table files is counted correctly.
+    collected.push(...aggregateHands(handResults))
 
     const { added, updated } = upsertTournaments(collected)
     base.added = added

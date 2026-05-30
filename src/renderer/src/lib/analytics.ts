@@ -22,8 +22,16 @@ export function applyFilters(tournaments: Tournament[], f: Filters): Tournament[
     .sort((a, b) => a.startDate.localeCompare(b.startDate))
 }
 
+/** Rows whose money result is known (came from a tournament summary). */
+export function withResults(rows: Tournament[]): Tournament[] {
+  return rows.filter((t) => t.resultKnown)
+}
+
 export interface Kpis {
+  /** All tournaments in range (played). */
   count: number
+  /** Tournaments with a known money result. */
+  resultCount: number
   totalCost: number
   totalPayout: number
   profit: number
@@ -32,29 +40,67 @@ export interface Kpis {
   itmRate: number
   avgBuyIn: number
   biggestWin: number
-  bestCashProfit: number
 }
 
 export function computeKpis(rows: Tournament[]): Kpis {
   const count = rows.length
-  const totalCost = sum(rows, (t) => t.totalCost)
-  const totalPayout = sum(rows, (t) => t.payout)
+  const res = withResults(rows)
+  const totalCost = sum(res, (t) => t.totalCost)
+  const totalPayout = sum(res, (t) => t.payout)
   const profit = totalPayout - totalCost
-  const itmCount = rows.filter((t) => t.payout > 0).length
+  const itmCount = res.filter((t) => t.payout > 0).length
   const avgBuyIn = count ? sum(rows, (t) => t.buyIn + t.fee) / count : 0
-  const biggestWin = rows.reduce((m, t) => Math.max(m, t.payout), 0)
-  const bestCashProfit = rows.reduce((m, t) => Math.max(m, t.profit), 0)
+  const biggestWin = res.reduce((m, t) => Math.max(m, t.payout), 0)
   return {
     count,
+    resultCount: res.length,
     totalCost,
     totalPayout,
     profit,
     roi: totalCost ? profit / totalCost : 0,
     itmCount,
-    itmRate: count ? itmCount / count : 0,
+    itmRate: res.length ? itmCount / res.length : 0,
     avgBuyIn,
-    biggestWin,
-    bestCashProfit
+    biggestWin
+  }
+}
+
+export interface PlayStyle {
+  hands: number
+  vpip: number
+  pfr: number
+  threeBet: number
+  af: number
+  afq: number
+  wtsd: number
+  wonSd: number
+  /** Tournaments that contributed hand stats. */
+  tournaments: number
+}
+
+/** Aggregate hero hand-history stats across rows into play-style rates. */
+export function computePlayStyle(rows: Tournament[]): PlayStyle {
+  const stats = rows.map((t) => t.handStats).filter((s): s is NonNullable<typeof s> => !!s)
+  const hands = sum(stats, (s) => s.hands)
+  const vpip = sum(stats, (s) => s.vpip)
+  const pfr = sum(stats, (s) => s.pfr)
+  const threeBet = sum(stats, (s) => s.threeBet)
+  const threeBetOpp = sum(stats, (s) => s.threeBetOpp)
+  const wtsd = sum(stats, (s) => s.wtsd)
+  const wonSd = sum(stats, (s) => s.wonSd)
+  const sawFlop = sum(stats, (s) => s.sawFlop)
+  const agg = sum(stats, (s) => s.aggActions)
+  const calls = sum(stats, (s) => s.callActions)
+  return {
+    hands,
+    vpip: hands ? vpip / hands : 0,
+    pfr: hands ? pfr / hands : 0,
+    threeBet: threeBetOpp ? threeBet / threeBetOpp : 0,
+    af: calls ? agg / calls : 0,
+    afq: agg + calls ? agg / (agg + calls) : 0,
+    wtsd: sawFlop ? wtsd / sawFlop : 0,
+    wonSd: wtsd ? wonSd / wtsd : 0,
+    tournaments: stats.length
   }
 }
 

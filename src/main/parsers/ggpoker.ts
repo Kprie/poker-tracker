@@ -149,6 +149,7 @@ function parseBlock(block: string): Tournament | null {
     reEntries,
     rebuys,
     addons,
-    profit: payout - totalCost
+    profit: payout - totalCost,
+    resultKnown: true
   }
 }

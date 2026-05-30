@@ -1,6 +1,7 @@
 import { useEffect, useMemo } from 'react'
 import { Toolbar } from './components/Toolbar'
 import { StatCards } from './components/StatCards'
+import { PlayStyle } from './components/PlayStyle'
 import { BankrollChart } from './components/BankrollChart'
 import { Breakdown } from './components/Breakdown'
 import { TournamentTable } from './components/TournamentTable'
@@ -12,7 +13,9 @@ import {
   byHour,
   bySpeed,
   byWeekday,
-  computeKpis
+  computeKpis,
+  computePlayStyle,
+  withResults
 } from './lib/analytics'
 
 function EmptyState(): JSX.Element {
@@ -65,16 +68,18 @@ export default function App(): JSX.Element {
   }, [init])
 
   const filtered = useMemo(() => applyFilters(tournaments, filters), [tournaments, filters])
+  const resultRows = useMemo(() => withResults(filtered), [filtered])
   const kpis = useMemo(() => computeKpis(filtered), [filtered])
-  const bankroll = useMemo(() => bankrollSeries(filtered), [filtered])
+  const playStyle = useMemo(() => computePlayStyle(filtered), [filtered])
+  const bankroll = useMemo(() => bankrollSeries(resultRows), [resultRows])
   const breakdowns = useMemo(
     () => ({
-      buyIn: byBuyIn(filtered),
-      speed: bySpeed(filtered),
-      weekday: byWeekday(filtered),
-      hour: byHour(filtered)
+      buyIn: byBuyIn(resultRows),
+      speed: bySpeed(resultRows),
+      weekday: byWeekday(resultRows),
+      hour: byHour(resultRows)
     }),
-    [filtered]
+    [resultRows]
   )
 
   return (
@@ -88,6 +93,7 @@ export default function App(): JSX.Element {
         ) : (
           <>
             <StatCards k={kpis} />
+            <PlayStyle s={playStyle} />
             <BankrollChart data={bankroll} />
             <Breakdown
               byBuyIn={breakdowns.buyIn}
