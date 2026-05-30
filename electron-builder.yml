@@ -9,7 +9,15 @@ files:
 win:
   target:
     - nsis
+    - portable
 nsis:
   oneClick: false
   perMachine: false
   allowToChangeInstallationDirectory: true
+  artifactName: ${productName}-Setup-${version}.${ext}
+portable:
+  artifactName: ${productName}-Portable-${version}.${ext}
+publish:
+  provider: github
+  owner: Kprie
+  repo: poker-tracker

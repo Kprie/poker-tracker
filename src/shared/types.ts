@@ -90,6 +90,12 @@ export interface ImportResult {
 export interface AppSettings {
   /** User-selected PokerStars tournament summary folder. */
   pokerStarsPath: string | null
+  /**
+   * Folder where the tracker stores its data file (poker-data.json). Resolved
+   * absolute path; defaults to the app's userData folder. The pointer itself is
+   * kept separately so it survives even when the data file moves.
+   */
+  dataDir?: string
 }
 
 export interface AppData {

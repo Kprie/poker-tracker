@@ -16,6 +16,7 @@ const api = {
     ipcRenderer.invoke('data:clear', source),
   choosePokerStarsFolder: (): Promise<string | null> =>
     ipcRenderer.invoke('pokerstars:choose-folder'),
+  chooseDataFolder: (): Promise<AppSettings> => ipcRenderer.invoke('data:choose-dir'),
   scanPokerStars: (): Promise<PokerStarsScanResult> => ipcRenderer.invoke('pokerstars:scan'),
   importGGPoker: (): Promise<ImportResult> => ipcRenderer.invoke('ggpoker:import')
 }

@@ -11,6 +11,7 @@ const mockApi: PokerApi = {
   getTournaments: async () => [],
   clearData: async () => [],
   choosePokerStarsFolder: async () => null,
+  chooseDataFolder: async () => ({ pokerStarsPath: null }),
   scanPokerStars: async (): Promise<PokerStarsScanResult> => ({
     source: 'pokerstars',
     path: '',
@@ -45,6 +46,7 @@ interface State {
   scanPokerStars: () => Promise<void>
   importGGPoker: () => Promise<void>
   chooseFolder: () => Promise<void>
+  chooseDataFolder: () => Promise<void>
   clear: (source?: Tournament['source']) => Promise<void>
   setToast: (t: State['toast']) => void
 }
@@ -122,6 +124,12 @@ export const useStore = create<State>((set, get) => ({
   chooseFolder: async () => {
     const path = await api.choosePokerStarsFolder()
     if (path) set({ settings: { ...get().settings, pokerStarsPath: path } })
+  },
+
+  chooseDataFolder: async () => {
+    const settings = await api.chooseDataFolder()
+    set({ settings })
+    get().setToast({ kind: 'ok', msg: `Datenordner: ${settings.dataDir ?? 'Standard'}` })
   },
 
   clear: async (source) => {

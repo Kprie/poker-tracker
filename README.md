@@ -17,26 +17,31 @@ von **PokerStars** und **GGPoker**.
 - **Spieltendenzen** (ergebnisbasiert): ROI nach Buy-in-Stufe, Profit nach Speed,
   Wochentag und Startuhrzeit.
 - **Turnier-Tabelle** mit Sortierung.
+- **Wählbarer Datenordner** – Speicherort frei festlegbar, Daten bleiben über Neustarts erhalten.
 
 ## Anleitung für Nutzer
 
-### 1. App starten
+### 1. App herunterladen & starten
 
-Es gibt (noch) keinen fertigen Installer – die App wird aus dem Quellcode gestartet.
-Einmalig benötigt: [Node.js](https://nodejs.org) (Version 20 oder neuer).
+**Variante A – fertige Datei (empfohlen):**
+
+1. Auf die [**Releases-Seite**](https://github.com/Kprie/poker-tracker/releases) gehen.
+2. Unter dem neuesten Release eine Datei herunterladen:
+   - **`Poker Tracker-Setup-x.y.z.exe`** – Installer (installiert die App, Startmenü-Eintrag), oder
+   - **`Poker Tracker-Portable-x.y.z.exe`** – läuft direkt per Doppelklick, ohne Installation.
+3. Datei ausführen. Windows SmartScreen kann warnen (App ist nicht signiert) →
+   *„Weitere Informationen" → „Trotzdem ausführen"*.
+
+Beim ersten Start erscheint ein einmaliger Nutzungs-Hinweis – mit **„Verstanden"** bestätigen.
+
+**Variante B – aus dem Quellcode** (für Entwickler; benötigt [Node.js](https://nodejs.org) 20+):
 
 ```bash
 git clone https://github.com/Kprie/poker-tracker.git
 cd poker-tracker
-npm install        # einmalig, lädt alle Abhängigkeiten
-npm run dev        # startet die App
+npm install
+npm run dev
 ```
-
-Beim Start öffnet sich das Programmfenster. Ein einmaliger Nutzungs-Hinweis erscheint –
-einmal mit **„Verstanden"** bestätigen.
-
-> Optional: `npm run build:win` erzeugt einen Windows-Installer (`.exe`) im Ordner `dist/`,
-> mit dem sich die App ganz normal installieren lässt.
 
 ### 2. PokerStars vorbereiten
 
@@ -73,6 +78,12 @@ Oben rechts in der App:
 
 Importe sind wiederholbar: Bereits vorhandene Turniere werden erkannt und aktualisiert,
 nicht doppelt gezählt. Du kannst also jederzeit neue Dateien nachladen.
+
+> **Datenordner:** Unter den Pfaden gibt es die Zeile *„Datenordner"* mit **„ändern"**.
+> Damit legst du fest, wo die getrackten Daten gespeichert werden (`poker-data.json`).
+> Standardmäßig im Benutzerprofil – die Daten bleiben auch nach einem Neustart erhalten.
+> Wählst du einen eigenen Ordner (z. B. in einer Cloud/auf einem USB-Stick), werden die
+> bestehenden Daten dorthin übernommen.
 
 ### 5. Auswerten
 

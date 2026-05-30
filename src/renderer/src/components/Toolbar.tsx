@@ -27,6 +27,7 @@ export function Toolbar(): JSX.Element {
   const scanPokerStars = useStore((s) => s.scanPokerStars)
   const importGGPoker = useStore((s) => s.importGGPoker)
   const chooseFolder = useStore((s) => s.chooseFolder)
+  const chooseDataFolder = useStore((s) => s.chooseDataFolder)
 
   const applyPreset = (days: number | 'all'): void => {
     if (days === 'all') setFilters({ from: null, to: null })
@@ -106,6 +107,17 @@ export function Toolbar(): JSX.Element {
             {settings.pokerStarsPath ?? 'nicht gefunden – bitte wählen'}
           </code>
           <button className="text-accent hover:underline shrink-0" onClick={chooseFolder}>
+            ändern
+          </button>
+        </div>
+
+        {/* Data folder */}
+        <div className="flex items-center gap-2 text-xs text-muted">
+          <span className="shrink-0">Datenordner:</span>
+          <code className="px-2 py-1 rounded bg-surface2 border border-border truncate max-w-[60ch]">
+            {settings.dataDir ?? 'Standard'}
+          </code>
+          <button className="text-accent hover:underline shrink-0" onClick={chooseDataFolder}>
             ändern
           </button>
         </div>

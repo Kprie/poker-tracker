@@ -38,6 +38,7 @@ import {
   clearTournaments,
   getSettings,
   getTournaments,
+  setDataDir,
   updateSettings,
   upsertTournaments
 } from './store'
@@ -72,6 +73,17 @@ export function registerIpc(): void {
     const path = res.filePaths[0]
     updateSettings({ pokerStarsPath: path })
     return path
+  })
+
+  // Let the user choose the folder where tracked data is stored.
+  ipcMain.handle('data:choose-dir', async () => {
+    const res = await dialog.showOpenDialog({
+      title: 'Ordner für getrackte Daten wählen',
+      properties: ['openDirectory', 'createDirectory']
+    })
+    if (res.canceled || res.filePaths.length === 0) return getSettings()
+    setDataDir(res.filePaths[0])
+    return getSettings()
   })
 
   // Scan the configured PokerStars folder for *.txt summaries and import them.

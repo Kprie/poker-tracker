@@ -8,10 +8,60 @@ const DEFAULT_SETTINGS: AppSettings = {
   pokerStarsPath: null
 }
 
-function dataFilePath(): string {
+const DATA_FILE = 'poker-data.json'
+
+// --- Data directory pointer ----------------------------------------------
+// The location of the data file is itself configurable. We keep that pointer
+// in a tiny config.json inside userData so it survives even when the data file
+// moves to a user-chosen folder.
+
+interface AppConfig {
+  dataDir: string | null
+}
+
+function configPath(): string {
   const dir = app.getPath('userData')
   if (!existsSync(dir)) mkdirSync(dir, { recursive: true })
-  return join(dir, 'poker-data.json')
+  return join(dir, 'config.json')
+}
+
+function loadConfig(): AppConfig {
+  try {
+    const cfg = JSON.parse(readFileSync(configPath(), 'utf-8')) as AppConfig
+    return { dataDir: cfg.dataDir ?? null }
+  } catch {
+    return { dataDir: null }
+  }
+}
+
+function saveConfig(cfg: AppConfig): void {
+  writeFileSync(configPath(), JSON.stringify(cfg, null, 2), 'utf-8')
+}
+
+/** Resolved folder where the data file lives (custom dir or userData). */
+export function resolveDataDir(): string {
+  const custom = loadConfig().dataDir
+  if (custom && existsSync(custom)) return custom
+  return app.getPath('userData')
+}
+
+function dataFilePath(): string {
+  const dir = resolveDataDir()
+  if (!existsSync(dir)) mkdirSync(dir, { recursive: true })
+  return join(dir, DATA_FILE)
+}
+
+/**
+ * Point the tracker at a new data folder. The current in-memory data is written
+ * to the new location so nothing is lost; the pointer persists across restarts.
+ */
+export function setDataDir(newDir: string): string {
+  const data = loadData() // current data from the old location
+  if (!existsSync(newDir)) mkdirSync(newDir, { recursive: true })
+  saveConfig({ dataDir: newDir })
+  cache = null // force path re-resolution
+  saveData(data) // writes to the new location and repopulates cache
+  return resolveDataDir()
 }
 
 /** Candidate default locations for PokerStars tournament summaries on Windows. */
@@ -75,7 +125,7 @@ export function saveData(data: AppData): void {
 }
 
 export function getSettings(): AppSettings {
-  return loadData().settings
+  return { ...loadData().settings, dataDir: resolveDataDir() }
 }
 
 export function updateSettings(patch: Partial<AppSettings>): AppSettings {
