@@ -42,9 +42,9 @@ export function Toolbar(): JSX.Element {
     <header className="sticky top-0 z-nav px-6 pt-4 pb-3">
       <div className="mx-auto max-w-[1400px]">
         <div className="card bg-surface/80 px-4 py-3 backdrop-blur-xl">
-          <div className="flex flex-wrap items-center gap-x-5 gap-y-3">
-            {/* Brand */}
-            <div className="flex items-center gap-3 pr-1">
+          {/* Row 1: brand + actions, edge-aligned */}
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
               <Logo size={38} />
               <div className="leading-none">
                 <h1 className="text-[17px] font-semibold tracking-tightest">Poker Tracker</h1>
@@ -52,48 +52,7 @@ export function Toolbar(): JSX.Element {
               </div>
             </div>
 
-            {/* Source segmented control */}
-            <div className="flex items-center gap-1 rounded-xl border border-white/10 bg-white/[0.03] p-1">
-              {SOURCES.map((s) => (
-                <button
-                  key={s.key}
-                  onClick={() => setFilters({ source: s.key })}
-                  className={`seg ${filters.source === s.key ? 'seg-active' : ''}`}
-                >
-                  {s.dot && <span className={`mr-1.5 inline-block h-1.5 w-1.5 rounded-full ${s.dot}`} />}
-                  {s.label}
-                </button>
-              ))}
-            </div>
-
-            {/* Date presets */}
-            <div className="flex items-center gap-0.5 rounded-xl border border-white/10 bg-white/[0.03] p-1">
-              {PRESETS.map((p) => (
-                <button key={p.label} className="chip" onClick={() => applyPreset(p.days)}>
-                  {p.label}
-                </button>
-              ))}
-            </div>
-
-            {/* Custom range */}
-            <div className="flex items-center gap-2 text-xs text-muted">
-              <input
-                type="date"
-                value={filters.from ?? ''}
-                onChange={(e) => setFilters({ from: e.target.value || null })}
-                className="rounded-lg border border-white/10 bg-white/[0.03] px-2.5 py-1.5 text-text [color-scheme:dark]"
-              />
-              <span className="opacity-50">–</span>
-              <input
-                type="date"
-                value={filters.to ?? ''}
-                onChange={(e) => setFilters({ to: e.target.value || null })}
-                className="rounded-lg border border-white/10 bg-white/[0.03] px-2.5 py-1.5 text-text [color-scheme:dark]"
-              />
-            </div>
-
-            {/* Actions */}
-            <div className="ml-auto flex items-center gap-2">
+            <div className="flex items-center gap-2">
               <button
                 onClick={() => setOpenSettings((v) => !v)}
                 className={`btn-ghost !px-2.5 ${openSettings ? '!border-accent/40 !bg-white/[0.07]' : ''}`}
@@ -115,6 +74,50 @@ export function Toolbar(): JSX.Element {
                 <Upload width={15} height={15} />
                 PokerCraft hochladen
               </button>
+            </div>
+          </div>
+
+          <div className="my-3 h-px bg-white/[0.06]" />
+
+          {/* Row 2: source filter (left) + date range (right) */}
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-1 rounded-xl border border-white/10 bg-white/[0.03] p-1">
+              {SOURCES.map((s) => (
+                <button
+                  key={s.key}
+                  onClick={() => setFilters({ source: s.key })}
+                  className={`seg ${filters.source === s.key ? 'seg-active' : ''}`}
+                >
+                  {s.dot && <span className={`mr-1.5 inline-block h-1.5 w-1.5 rounded-full ${s.dot}`} />}
+                  {s.label}
+                </button>
+              ))}
+            </div>
+
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="flex items-center gap-0.5 rounded-xl border border-white/10 bg-white/[0.03] p-1">
+                {PRESETS.map((p) => (
+                  <button key={p.label} className="chip" onClick={() => applyPreset(p.days)}>
+                    {p.label}
+                  </button>
+                ))}
+              </div>
+
+              <div className="flex items-center gap-2 text-xs text-muted">
+                <input
+                  type="date"
+                  value={filters.from ?? ''}
+                  onChange={(e) => setFilters({ from: e.target.value || null })}
+                  className="rounded-lg border border-white/10 bg-white/[0.03] px-2.5 py-1.5 text-text [color-scheme:dark]"
+                />
+                <span className="opacity-50">–</span>
+                <input
+                  type="date"
+                  value={filters.to ?? ''}
+                  onChange={(e) => setFilters({ to: e.target.value || null })}
+                  className="rounded-lg border border-white/10 bg-white/[0.03] px-2.5 py-1.5 text-text [color-scheme:dark]"
+                />
+              </div>
             </div>
           </div>
 
