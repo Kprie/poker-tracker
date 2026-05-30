@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 
-const KEY = 'pt.disclaimerAccepted.v2'
+const KEY = 'pt.disclaimerAccepted.v3'
 
 interface Point {
   icon: string
@@ -73,9 +73,8 @@ export function Disclaimer(): JSX.Element | null {
 
   return (
     <div className="fixed inset-0 z-modal grid place-items-center bg-black/70 p-4 backdrop-blur-md">
-      <div className="bezel w-full max-w-lg">
-       <div className="glass p-6">
-        <span className="eyebrow mb-4">Hinweis zur Nutzung</span>
+      <div className="card w-full max-w-lg p-6">
+        <span className="eyebrow">Hinweis zur Nutzung</span>
         <h2 className="mb-2 mt-3 text-xl font-semibold tracking-tightest">Private Offline-Nutzung</h2>
         <p className="text-sm text-muted mb-5 leading-relaxed">
           Dieses Tool ist ausschließlich für die{' '}
@@ -99,11 +98,10 @@ export function Disclaimer(): JSX.Element | null {
         </p>
 
         <div className="flex justify-end">
-          <button className="btn-primary !pr-5" onClick={accept}>
+          <button className="btn-primary" onClick={accept}>
             Verstanden
           </button>
         </div>
-       </div>
       </div>
     </div>
   )

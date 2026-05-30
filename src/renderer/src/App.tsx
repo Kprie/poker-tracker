@@ -1,7 +1,6 @@
 import { useEffect, useMemo } from 'react'
 import { Toolbar } from './components/Toolbar'
 import { Disclaimer } from './components/Disclaimer'
-import { Panel } from './components/Panel'
 import { KpiTile } from './components/KpiTile'
 import { Reveal } from './components/Reveal'
 import { PlayStyle } from './components/PlayStyle'
@@ -29,21 +28,19 @@ function EmptyState(): JSX.Element {
   return (
     <div className="grid place-items-center py-28 text-center">
       <Reveal className="max-w-md">
-        <span className="eyebrow mx-auto">Erste Schritte</span>
-        <h2 className="mt-5 text-3xl font-semibold tracking-tightest">Noch keine Daten</h2>
+        <span className="eyebrow justify-center">Erste Schritte</span>
+        <h2 className="mt-4 text-3xl font-semibold tracking-tightest">Noch keine Daten</h2>
         <p className="mx-auto mt-3 max-w-sm text-sm leading-relaxed text-muted">
           Lies deine PokerStars-Dateien ein oder lade einen GGPoker PokerCraft-Export
           (.zip oder .txt) hoch, um deine Statistiken zu sehen.
         </p>
         <div className="mt-8 flex items-center justify-center gap-2.5">
-          <button className="btn-ghost group" onClick={scanPokerStars}>
+          <button className="btn-ghost" onClick={scanPokerStars}>
             PokerStars einlesen
           </button>
-          <button className="btn-primary group" onClick={importGGPoker}>
+          <button className="btn-primary" onClick={importGGPoker}>
+            <Upload width={15} height={15} />
             PokerCraft hochladen
-            <span className="btn-icon">
-              <Upload width={15} height={15} />
-            </span>
           </button>
         </div>
       </Reveal>
@@ -57,8 +54,8 @@ function Toast(): JSX.Element | null {
   return (
     <div className="fixed bottom-6 right-6 z-modal">
       <div
-        className={`rounded-2xl bg-white/[0.06] px-4 py-3 text-sm ring-1 backdrop-blur-xl shadow-ambient ${
-          toast.kind === 'ok' ? 'text-profit ring-profit/30' : 'text-loss ring-loss/30'
+        className={`card px-4 py-3 text-sm backdrop-blur-xl ${
+          toast.kind === 'ok' ? 'text-profit' : 'text-loss'
         }`}
       >
         {toast.msg}
@@ -97,64 +94,54 @@ export default function App(): JSX.Element {
     <div className="min-h-[100dvh]">
       <Disclaimer />
       <Toolbar />
-      <main className="relative z-[2] mx-auto flex w-full max-w-[1440px] flex-col gap-5 px-6 pb-20 pt-3">
+      <main className="mx-auto flex w-full max-w-[1400px] flex-col gap-6 px-6 pb-20 pt-3">
         {loading ? (
           <div className="py-28 text-center text-muted">Lädt…</div>
         ) : tournaments.length === 0 ? (
           <EmptyState />
         ) : (
           <>
-            {/* Overview — asymmetric bento */}
+            {/* Net profit + bankroll */}
             <Reveal>
-              <section className="grid gap-5 lg:grid-cols-12">
-                <div className="lg:col-span-8">
-                  <Panel bodyClassName="p-6">
-                    <div className="flex flex-wrap items-start justify-between gap-4">
-                      <div>
-                        <span className="eyebrow">Netto-Profit</span>
-                        <div
-                          className={`tabnum mt-3 text-5xl font-semibold tracking-tightest ${
-                            profitTone === 'profit'
-                              ? 'text-profit'
-                              : profitTone === 'loss'
-                                ? 'text-loss'
-                                : 'text-text'
-                          }`}
-                        >
-                          {money(kpis.profit)}
-                        </div>
-                        <div className="mt-2.5 text-sm text-muted">
-                          ROI <span className="tabnum text-text">{pct(kpis.roi)}</span> ·{' '}
-                          <span className="tabnum text-text">{kpis.resultCount}</span> Turniere mit
-                          Ergebnis
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <span className="eyebrow">Bankroll</span>
-                        <div className="mt-3 text-xs text-muted">
-                          {filtered.length} Turniere · {resultRows.length} gewertet
-                        </div>
-                      </div>
+              <div className="card p-5 md:p-6">
+                <div className="flex flex-wrap items-end justify-between gap-3">
+                  <div>
+                    <span className="eyebrow">Netto-Profit</span>
+                    <div
+                      className={`tabnum mt-2.5 text-[2.6rem] font-semibold leading-none tracking-tightest ${
+                        profitTone === 'profit'
+                          ? 'text-profit'
+                          : profitTone === 'loss'
+                            ? 'text-loss'
+                            : 'text-text'
+                      }`}
+                    >
+                      {money(kpis.profit)}
                     </div>
-                    <div className="mt-5">
-                      <BankrollChart data={bankroll} height={252} />
+                    <div className="mt-2.5 text-sm text-muted">
+                      ROI <span className="tabnum text-text">{pct(kpis.roi)}</span> ·{' '}
+                      <span className="tabnum text-text">{kpis.resultCount}</span> von{' '}
+                      <span className="tabnum text-text">{filtered.length}</span> Turnieren gewertet
                     </div>
-                  </Panel>
+                  </div>
+                  <span className="eyebrow pb-1">Bankroll-Verlauf</span>
                 </div>
+                <div className="mt-5">
+                  <BankrollChart data={bankroll} height={248} />
+                </div>
+              </div>
+            </Reveal>
 
-                <div className="lg:col-span-4">
-                  <Panel title="Kennzahlen" className="h-full" bodyClassName="p-3 h-full">
-                    <div className="grid h-full grid-cols-2 grid-rows-3 gap-2.5">
-                      <KpiTile label="ROI" value={pct(kpis.roi)} tone={roiTone} />
-                      <KpiTile label="ITM-Quote" value={pct(kpis.itmRate)} sub={`${kpis.itmCount} im Geld`} />
-                      <KpiTile label="Buy-ins" value={money(kpis.totalCost)} />
-                      <KpiTile label="Auszahlungen" value={money(kpis.totalPayout)} />
-                      <KpiTile label="Größter Cash" value={money(kpis.biggestWin)} />
-                      <KpiTile label="Ø Buy-in" value={money(kpis.avgBuyIn)} />
-                    </div>
-                  </Panel>
-                </div>
-              </section>
+            {/* KPI cards */}
+            <Reveal delay={40}>
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+                <KpiTile label="ROI" value={pct(kpis.roi)} tone={roiTone} />
+                <KpiTile label="ITM-Quote" value={pct(kpis.itmRate)} sub={`${kpis.itmCount} im Geld`} />
+                <KpiTile label="Buy-ins" value={money(kpis.totalCost)} />
+                <KpiTile label="Auszahlungen" value={money(kpis.totalPayout)} />
+                <KpiTile label="Größter Cash" value={money(kpis.biggestWin)} />
+                <KpiTile label="Ø Buy-in" value={money(kpis.avgBuyIn)} />
+              </div>
             </Reveal>
 
             {playStyle.hands > 0 && (
@@ -163,7 +150,7 @@ export default function App(): JSX.Element {
               </Reveal>
             )}
 
-            <Reveal delay={90}>
+            <Reveal delay={80}>
               <Breakdown
                 byBuyIn={breakdowns.buyIn}
                 bySpeed={breakdowns.speed}
@@ -172,7 +159,7 @@ export default function App(): JSX.Element {
               />
             </Reveal>
 
-            <Reveal delay={120}>
+            <Reveal delay={100}>
               <TournamentTable rows={filtered} />
             </Reveal>
           </>

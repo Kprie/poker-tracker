@@ -3,21 +3,15 @@ interface Props {
   value: string
   sub?: string
   tone?: 'profit' | 'loss' | 'neutral'
-  /** Larger value type for emphasis tiles. */
-  size?: 'sm' | 'md'
 }
 
-export function KpiTile({ label, value, sub, tone = 'neutral', size = 'sm' }: Props): JSX.Element {
+export function KpiTile({ label, value, sub, tone = 'neutral' }: Props): JSX.Element {
   const toneClass =
     tone === 'profit' ? 'text-profit' : tone === 'loss' ? 'text-loss' : 'text-text'
   return (
-    <div className="tile p-4">
-      <div className="text-[10px] uppercase tracking-eyebrow text-muted/80">{label}</div>
-      <div
-        className={`tabnum mt-2 font-semibold leading-none tracking-tight ${toneClass} ${
-          size === 'md' ? 'text-[1.6rem]' : 'text-[1.3rem]'
-        }`}
-      >
+    <div className="card p-4 transition-colors duration-300 ease-fluid hover:border-white/15">
+      <div className="text-[10px] uppercase tracking-eyebrow text-muted">{label}</div>
+      <div className={`tabnum mt-2 text-[1.4rem] font-semibold leading-none tracking-tight ${toneClass}`}>
         {value}
       </div>
       {sub && <div className="mt-1.5 text-[11px] text-muted">{sub}</div>}

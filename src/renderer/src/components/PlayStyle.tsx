@@ -1,13 +1,12 @@
 import type { PlayStyle as PlayStyleData } from '../lib/analytics'
 import { pct } from '../lib/format'
-import { Panel } from './Panel'
+import { Section } from './Section'
 import { KpiTile } from './KpiTile'
 
 interface Props {
   s: PlayStyleData
 }
 
-/** Rough qualitative label for a VPIP/PFR pairing. */
 function styleLabel(vpip: number, pfr: number): string {
   if (vpip === 0) return '—'
   const gap = vpip - pfr
@@ -31,27 +30,28 @@ export function PlayStyle({ s }: Props): JSX.Element | null {
   ]
 
   return (
-    <Panel
+    <Section
       title={
         <>
           Spielstil <span className="font-normal text-muted">· aus Hand-Histories</span>
         </>
       }
       aside={
-        <>
-          <span className="tabnum text-text">{s.hands.toLocaleString('de-DE')}</span> Hände ·{' '}
-          <span className="tabnum text-text">{s.tournaments}</span> Turniere ·{' '}
-          <span className="rounded-full bg-accent/15 px-2 py-0.5 text-accent">
+        <span className="inline-flex items-center gap-2">
+          <span>
+            <span className="tabnum text-text">{s.hands.toLocaleString('de-DE')}</span> Hände
+          </span>
+          <span className="rounded-md bg-accent/12 px-2 py-0.5 text-accent">
             {styleLabel(s.vpip, s.pfr)}
           </span>
-        </>
+        </span>
       }
     >
-      <div className="grid grid-cols-2 gap-2.5 md:grid-cols-3 xl:grid-cols-6">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
         {cards.map((c) => (
           <KpiTile key={c.label} label={c.label} value={c.value} sub={c.hint} />
         ))}
       </div>
-    </Panel>
+    </Section>
   )
 }

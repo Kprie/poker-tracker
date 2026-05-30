@@ -4,19 +4,21 @@ export default {
   theme: {
     extend: {
       colors: {
-        bg: '#07090d',
-        surface: '#10141c',
-        surface2: '#161b25',
-        border: '#222936',
-        muted: '#8b95a8',
-        text: '#eef2f8',
-        accent: '#6aa6ff',
-        'accent-deep': '#4d8af0',
-        ink: '#05101f',
+        // Neutral near-black (no blue cast).
+        bg: '#0a0a0b',
+        surface: '#141415',
+        surface2: '#1b1b1d',
+        border: '#28282c',
+        muted: '#9a9aa1',
+        text: '#ededee',
+        // Green brand accent (matches the chip/spade logo).
+        accent: '#34d399',
+        'accent-deep': '#27ae7f',
+        ink: '#04130c',
         profit: '#3ddc97',
-        loss: '#ff6b6b',
+        loss: '#f0686d',
         ps: '#e0524a',
-        gg: '#ffa23c'
+        gg: '#f3a13c'
       },
       fontFamily: {
         sans: ['Geist Variable', 'Geist', 'Segoe UI', 'system-ui', 'sans-serif'],
@@ -24,19 +26,14 @@ export default {
       },
       letterSpacing: {
         tightest: '-0.045em',
-        eyebrow: '0.22em'
-      },
-      borderRadius: {
-        bezel: '1.75rem',
-        core: 'calc(1.75rem - 0.375rem)'
+        eyebrow: '0.18em'
       },
       transitionTimingFunction: {
-        fluid: 'cubic-bezier(0.32, 0.72, 0, 1)'
+        fluid: 'cubic-bezier(0.22, 1, 0.36, 1)'
       },
       boxShadow: {
-        ambient: '0 24px 60px -28px rgba(0,0,0,0.85)',
-        glow: '0 0 0 1px rgba(106,166,255,0.30), 0 10px 40px -12px rgba(106,166,255,0.35)',
-        'inset-hi': 'inset 0 1px 0 0 rgba(255,255,255,0.08)'
+        card: '0 1px 2px rgba(0,0,0,0.4), 0 8px 24px -16px rgba(0,0,0,0.7)',
+        glow: '0 0 0 1px rgba(52,211,153,0.25)'
       },
       zIndex: {
         nav: '30',
