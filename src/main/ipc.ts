@@ -7,6 +7,7 @@ import { parseGGPokerSummaries } from './parsers/ggpoker'
 import { parsePokerStarsSummaries } from './parsers/pokerstars'
 import {
   aggregateHands,
+  dominantHero,
   isPokerStarsHandHistory,
   parsePokerStarsHands,
   type HandResult
@@ -106,6 +107,7 @@ export function registerIpc(): void {
 
     const collected: Tournament[] = []
     const handResults: HandResult[] = []
+    const summaryContents: string[] = []
     const files = walkTxtFiles(path)
 
     for (const file of files) {
@@ -118,13 +120,20 @@ export function registerIpc(): void {
           if (hands.length === 0) base.skipped++
           handResults.push(...hands)
         } else {
-          const parsed = parsePokerStarsSummaries(content)
-          if (parsed.length === 0) base.skipped++
-          collected.push(...parsed)
+          summaryContents.push(content)
         }
       } catch (err) {
         base.errors.push(`${file}: ${(err as Error).message}`)
       }
+    }
+
+    // Learn the hero name from hand histories first, then use it to locate the
+    // hero in tournament summaries (needed for German PokerStars.DE files).
+    const heroName = dominantHero(handResults) ?? undefined
+    for (const content of summaryContents) {
+      const parsed = parsePokerStarsSummaries(content, heroName)
+      if (parsed.length === 0) base.skipped++
+      collected.push(...parsed)
     }
 
     // Aggregate hands across ALL files once (de-duped by hand id) so a

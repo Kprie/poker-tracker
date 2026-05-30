@@ -1,18 +1,10 @@
 import type { Tournament, TournamentSpeed } from '../../shared/types'
+import { moneyAmounts, parseBuyInSegment, parseMoney, parseTimestamp } from './util'
 
-const CURRENCY_BY_SYMBOL: Record<string, string> = {
-  $: 'USD',
-  '€': 'EUR',
-  '£': 'GBP',
-  '₹': 'INR'
-}
-
-function detectCurrency(text: string): string {
-  for (const sym of Object.keys(CURRENCY_BY_SYMBOL)) {
-    if (text.includes(sym)) return CURRENCY_BY_SYMBOL[sym]
-  }
-  return 'USD'
-}
+// Bilingual PokerStars Tournament Summary parser (English + German /
+// PokerStars.DE). The hero's result is found from the ranking list. In German
+// summaries the hero is located via the "Du hast den N. Platz belegt" line or,
+// when only hand histories reveal it, via a supplied hero name hint.
 
 function detectSpeed(name: string): TournamentSpeed {
   const n = name.toLowerCase()
@@ -21,113 +13,99 @@ function detectSpeed(name: string): TournamentSpeed {
   return 'regular'
 }
 
-/** Parse a number like "1,234.56" -> 1234.56 */
-function num(s: string | undefined | null): number {
-  if (!s) return 0
-  return parseFloat(s.replace(/,/g, '')) || 0
+interface Ranking {
+  place: number
+  name: string
+  payout: number
+  stillPlaying: boolean
 }
 
-function toIso(date: string, time: string): string {
-  // date like 2012/06/24, time like 13:00:00 -> 2012-06-24T13:00:00
-  const d = date.replace(/\//g, '-')
-  return `${d}T${time || '00:00:00'}`
+/** Parse a single ranking line: "  645: Name [3] (Country), $14,59 (0,05%)". */
+function parseRankingLine(line: string): Ranking | null {
+  const m = line.match(/^\s*(\d+):\s+(.*)$/)
+  if (!m) return null
+  const rest = m[2].replace(/\r$/, '').trim()
+  if (!rest) return null
+  // The country sits in the first parenthesis; the player name precedes it and
+  // never contains a parenthesis. Anything after the country is the payout/pct.
+  const open = rest.search(/\s*\(/)
+  const name = (open >= 0 ? rest.slice(0, open) : rest)
+    .replace(/\s*\[\d+\]\s*$/, '')
+    .trim()
+  if (!name) return null
+  const afterCountry = open >= 0 ? rest.slice(rest.indexOf(')', open) + 1) : ''
+  const stillPlaying = /spielt noch|still playing/i.test(afterCountry)
+  const payout = stillPlaying ? 0 : (moneyAmounts(afterCountry)[0] ?? 0)
+  return { place: parseInt(m[1], 10), name, payout, stillPlaying }
 }
 
-/**
- * Parse the full text of a PokerStars Tournament Summary file.
- * A file usually contains one tournament, but we split defensively so
- * concatenated summaries also work.
- */
-export function parsePokerStarsSummaries(content: string): Tournament[] {
-  const text = content.replace(/^﻿/, '') // strip BOM
-  const headerRe = /PokerStars Tournament #/g
-  const indices: number[] = []
-  let m: RegExpExecArray | null
-  while ((m = headerRe.exec(text)) !== null) indices.push(m.index)
-  if (indices.length === 0) return []
-
-  const blocks: string[] = []
-  for (let i = 0; i < indices.length; i++) {
-    const start = indices[i]
-    const end = i + 1 < indices.length ? indices[i + 1] : text.length
-    blocks.push(text.slice(start, end))
-  }
-
-  const out: Tournament[] = []
-  for (const block of blocks) {
-    const t = parseBlock(block)
-    if (t) out.push(t)
+function collectRankings(block: string): Ranking[] {
+  const out: Ranking[] = []
+  for (const line of block.split('\n')) {
+    const r = parseRankingLine(line)
+    if (r) out.push(r)
   }
   return out
 }
 
-function parseBlock(block: string): Tournament | null {
-  const idMatch = block.match(/PokerStars Tournament #(\d+),?\s*(.*)/)
+interface HeroResult {
+  finishPlace: number
+  payout: number
+  entries: number
+}
+
+function findHeroResult(
+  block: string,
+  rankings: Ranking[],
+  heroNameHint?: string
+): HeroResult | null {
+  let heroName = heroNameHint
+  if (!heroName) {
+    // German: "Du hast den N. Platz belegt" → look up that place's name.
+    const de = block.match(/Du hast den (\d+)\. Platz belegt/)
+    if (de) heroName = rankings.find((r) => r.place === parseInt(de[1], 10))?.name
+    // English: "Dear Hero," salutation.
+    if (!heroName) heroName = block.match(/Dear (\S+),/)?.[1]
+  }
+  if (!heroName) return null
+
+  const lines = rankings.filter((r) => r.name === heroName && !r.stillPlaying)
+  if (lines.length === 0) return null
+  return {
+    finishPlace: Math.min(...lines.map((r) => r.place)),
+    payout: lines.reduce((a, r) => a + r.payout, 0),
+    entries: lines.length
+  }
+}
+
+function parseSummaryBlock(block: string, heroNameHint?: string): Tournament | null {
+  const idMatch = block.match(/PokerStars (?:Tournament|Turnier) #(\d+),\s*(.*)/)
   if (!idMatch) return null
   const tournamentId = idMatch[1]
-  const headerRest = (idMatch[2] || '').trim()
+  const gameType = (idMatch[2] || '').replace(/\s+(USD|EUR|GBP)\b/i, '').trim() || 'Unknown'
 
-  // Game type sits on the header line after the id, e.g. "No Limit Hold'em".
-  const gameType = headerRest.replace(/\s+USD|\s+EUR|\s+GBP/i, '').trim() || 'Unknown'
-
-  // Buy-In line: "Buy-In: $4.60+$0.40 USD" or with a bounty part, or "Freeroll".
   let buyIn = 0
   let fee = 0
-  let currency = detectCurrency(block)
-  const buyInLine = block.match(/Buy-In:\s*(.+)/)
+  let currency = 'USD'
+  const buyInLine = block.match(/Buy-?in:\s*(.+)/i)
   if (buyInLine) {
-    const line = buyInLine[1]
-    if (/freeroll/i.test(line)) {
-      buyIn = 0
-      fee = 0
-    } else {
-      const parts = [...line.matchAll(/[$€£₹]\s*([\d,]+(?:\.\d+)?)/g)].map((mm) => num(mm[1]))
-      if (parts.length === 1) {
-        buyIn = parts[0]
-      } else if (parts.length >= 2) {
-        fee = parts[parts.length - 1]
-        buyIn = parts.slice(0, -1).reduce((a, b) => a + b, 0)
-      }
-    }
-    currency = detectCurrency(line) || currency
+    const parsed = parseBuyInSegment(buyInLine[1])
+    buyIn = parsed.buyIn
+    fee = parsed.fee
+    currency = parsed.currency
   }
 
-  // Field size: "3840 players"
-  const fieldMatch = block.match(/^\s*(\d[\d,]*)\s+players\b/m)
-  const fieldSize = fieldMatch ? num(fieldMatch[1]) : null
+  const fieldMatch = block.match(/^\s*([\d.,]+)\s+(?:players|Spieler)\b/m)
+  const fieldSize = fieldMatch ? Math.round(parseMoney(fieldMatch[1])) : null
 
-  // Start date: "Tournament started 2012/06/24 13:00:00 ET"
-  const startMatch = block.match(/Tournament started\s+(\d{4}\/\d{2}\/\d{2})\s+(\d{2}:\d{2}:\d{2})/)
-  const startDate = startMatch ? toIso(startMatch[1], startMatch[2]) : new Date(0).toISOString()
+  const startLine = block.match(/(?:Turnierbeginn|Tournament started)\s+(.+)/)
+  const startDate = startLine ? parseTimestamp(startLine[1]) : new Date(0).toISOString()
 
-  // Finish place + payout:
-  // "You finished the tournament in 5th place and received $123.45."
-  // "You finished the tournament in 1452nd place."
-  let finishPlace: number | null = null
-  let payout = 0
-  const finishMatch = block.match(
-    /You finished (?:the tournament )?in (\d+)(?:st|nd|rd|th) place(?:[^$€£₹\n]*[$€£₹]\s*([\d,]+(?:\.\d+)?))?/i
-  )
-  if (finishMatch) {
-    finishPlace = parseInt(finishMatch[1], 10)
-    if (finishMatch[2]) payout += num(finishMatch[2])
-  }
+  const rankings = collectRankings(block)
+  const hero = findHeroResult(block, rankings, heroNameHint)
 
-  // Bounty / knockout winnings: "You earned $12.00 in bounty awards" (wording varies).
-  let bounty = 0
-  const bountyMatch = block.match(/earned\s+[$€£₹]\s*([\d,]+(?:\.\d+)?)\s+(?:in\s+)?bount/i)
-  if (bountyMatch) {
-    bounty = num(bountyMatch[1])
-    payout += bounty
-  }
-
-  // Rebuys / add-ons / re-entries.
-  const rebuys = num(block.match(/made\s+(\d+)\s+rebuy/i)?.[1]) || 0
-  const addons = num(block.match(/(\d+)\s+add-?on/i)?.[1]) || 0
-  const reEntries = num(block.match(/re-?enter(?:ed)?\s+(?:the tournament\s+)?(\d+)\s+time/i)?.[1]) || 0
-
-  const entriesCount = 1 + rebuys + addons + reEntries
-  const totalCost = (buyIn + fee) * entriesCount
+  const entries = hero?.entries ?? 1
+  const totalCost = (buyIn + fee) * entries
 
   return {
     id: `pokerstars:${tournamentId}`,
@@ -135,20 +113,44 @@ function parseBlock(block: string): Tournament | null {
     tournamentId,
     name: gameType !== 'Unknown' ? `#${tournamentId} ${gameType}` : `#${tournamentId}`,
     gameType,
-    speed: detectSpeed(headerRest),
+    speed: detectSpeed(gameType),
     currency,
     buyIn,
     fee,
     totalCost,
     startDate,
     fieldSize,
-    finishPlace,
-    payout,
-    bounty,
-    reEntries,
-    rebuys,
-    addons,
-    profit: payout - totalCost,
-    resultKnown: true
+    finishPlace: hero?.finishPlace ?? null,
+    payout: hero?.payout ?? 0,
+    bounty: 0,
+    reEntries: hero ? hero.entries - 1 : 0,
+    rebuys: 0,
+    addons: 0,
+    profit: (hero?.payout ?? 0) - totalCost,
+    resultKnown: hero != null
   }
+}
+
+/**
+ * Parse the text of one or more PokerStars tournament summaries.
+ * @param heroNameHint hero screen name (e.g. learned from hand histories) used
+ *   to locate the hero in the ranking list when the summary has no explicit
+ *   "Du hast den N. Platz belegt" line.
+ */
+export function parsePokerStarsSummaries(content: string, heroNameHint?: string): Tournament[] {
+  const text = content.replace(/^﻿/, '').replace(/\r\n?/g, '\n')
+  const headerRe = /PokerStars (?:Tournament|Turnier) #/g
+  const indices: number[] = []
+  let m: RegExpExecArray | null
+  while ((m = headerRe.exec(text)) !== null) indices.push(m.index)
+  if (indices.length === 0) return []
+
+  const out: Tournament[] = []
+  for (let i = 0; i < indices.length; i++) {
+    const start = indices[i]
+    const end = i + 1 < indices.length ? indices[i + 1] : text.length
+    const t = parseSummaryBlock(text.slice(start, end), heroNameHint)
+    if (t) out.push(t)
+  }
+  return out
 }

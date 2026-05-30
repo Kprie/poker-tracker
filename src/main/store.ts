@@ -69,7 +69,19 @@ export function detectPokerStarsPath(): string | null {
   const home = homedir()
   const localAppData = process.env.LOCALAPPDATA || join(home, 'AppData', 'Local')
   const docs = join(home, 'Documents')
-  const clients = ['PokerStars', 'PokerStarsEU', 'PokerStars.EU', 'PokerStarsNET', 'PokerStars.NET']
+  const clients = [
+    'PokerStars',
+    'PokerStars.DE',
+    'PokerStars.EU',
+    'PokerStarsEU',
+    'PokerStars.UK',
+    'PokerStars.FR',
+    'PokerStars.ES',
+    'PokerStars.PT',
+    'PokerStars.IT',
+    'PokerStarsNET',
+    'PokerStars.NET'
+  ]
   const candidates: string[] = []
   // Prefer the client root (contains both HandHistory and TournSummary) so a
   // recursive scan picks up results and play stats in one go.

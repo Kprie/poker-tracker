@@ -1,16 +1,12 @@
 import type { HandStatsAgg, Tournament, TournamentSpeed } from '../../shared/types'
+import { parseBuyInSegment, parseTimestamp } from './util'
 
-// PokerStars Hand History parser. These files contain every hand the hero
-// played, grouped per tournament. They give the buy-in (from the header) and
-// the hero's actions (for play-style stats), but NOT payout / finish place —
-// those live in the tournament summary and are merged in by tournament id.
-//
-// Two header variants are supported:
-//   PokerStars Hand #<id> Tournament #<tid>, $1.84+$0.16 USD Hold'em No Limit ...
-//   PokerStars Game #<id>: Tournament #<tid>, Freeroll Hold'em No Limit ...
-// and two timestamp formats (YYYYMMDD HHMMSS and YYYY/MM/DD HH:MM:SS).
+// Bilingual PokerStars Hand History parser (English + German / PokerStars.DE).
+// Hand histories give the buy-in (header) and the hero's actions (play-style
+// stats); the hero's finish place is also present when they bust. Payout is not
+// in hand histories and is merged in from the tournament summary.
 
-const VOLUNTARY = new Set(['calls', 'bets', 'raises'])
+type Verb = 'fold' | 'check' | 'call' | 'bet' | 'raise' | 'post'
 
 export interface HandResult {
   handId: string
@@ -21,7 +17,7 @@ export interface HandResult {
   currency: string
   buyIn: number
   fee: number
-  // per-hand flags (0/1)
+  finishPlace: number | null
   vpip: number
   pfr: number
   threeBetOpp: number
@@ -35,39 +31,29 @@ export interface HandResult {
 }
 
 export function isPokerStarsHandHistory(content: string): boolean {
-  return /PokerStars (?:Hand|Game) #\d+/.test(content)
-}
-
-function num(s: string | undefined | null): number {
-  if (!s) return 0
-  return parseFloat(s.replace(/,/g, '')) || 0
+  return /PokerStars (?:Hand|Game) (?:#|Nr\. )\d+/.test(content)
 }
 
 function esc(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 }
 
-function parseBuyIn(seg: string): { buyIn: number; fee: number; currency: string } {
-  if (/freeroll/i.test(seg)) return { buyIn: 0, fee: 0, currency: 'USD' }
-  const parts = [...seg.matchAll(/[$€£₹]\s*([\d,]+(?:\.\d+)?)/g)].map((m) => num(m[1]))
-  const currency = seg.includes('€') ? 'EUR' : seg.includes('£') ? 'GBP' : 'USD'
-  if (parts.length === 0) return { buyIn: 0, fee: 0, currency }
-  if (parts.length === 1) return { buyIn: parts[0], fee: 0, currency }
-  return { buyIn: parts.slice(0, -1).reduce((a, b) => a + b, 0), fee: parts[parts.length - 1], currency }
+/** Classify an action line into a normalized verb (DE + EN), or null. */
+function classifyVerb(line: string): Verb | null {
+  if (/setzt (?:Small Blind|Big Blind|Ante)/i.test(line) || /\bposts\b/i.test(line)) return 'post'
+  if (/\berhöht\b/i.test(line) || /\braises\b/i.test(line)) return 'raise'
+  if (/\bgeht mit\b/i.test(line) || /\bcalls\b/i.test(line)) return 'call'
+  if (/\bbets\b/i.test(line)) return 'bet'
+  if (/\bsetzt\b/i.test(line) && !/setzt aus/i.test(line)) return 'bet'
+  if (/\bcheckt\b/i.test(line) || /\bchecks\b/i.test(line)) return 'check'
+  if (/\bpasst\b/i.test(line) || /\bfolds\b/i.test(line)) return 'fold'
+  return null
 }
 
-function parseDate(header: string): string {
-  const bracket = header.match(/\[([^\]]+?)\s*ET\]/) || header.match(/\[([^\]]+)\]/)
-  const src = bracket ? bracket[1] : header
-  const m = src.match(/(\d{4})[/-]?(\d{2})[/-]?(\d{2})\s+(\d{1,2}):?(\d{2}):?(\d{2})/)
-  if (!m) return new Date(0).toISOString()
-  const [, y, mo, d, h, mi, s] = m
-  return `${y}-${mo}-${d}T${h.padStart(2, '0')}:${mi}:${s}`
-}
-
-/** Index of a street marker, or -1. Case-sensitive (markers are uppercase). */
-function markerIndex(block: string, marker: string): number {
-  return block.indexOf(marker)
+function makeIsHero(hero: string): (line: string) => boolean {
+  const colon = new RegExp(`^\\s*${esc(hero)}\\s*:`)
+  const space = new RegExp(`^\\s*${esc(hero)}\\s`)
+  return (line: string) => colon.test(line) || space.test(line)
 }
 
 function firstPositive(...idx: number[]): number {
@@ -81,30 +67,46 @@ function section(block: string, start: number, ends: number[]): string {
   return block.slice(start, end >= 0 ? end : block.length)
 }
 
+/** Index of the first of the given (case-sensitive) markers, or -1. */
+function findMarker(block: string, ...markers: string[]): number {
+  for (const m of markers) {
+    const i = block.indexOf(m)
+    if (i >= 0) return i
+  }
+  return -1
+}
+
 function parseHand(block: string): HandResult | null {
-  const header = block.match(/PokerStars (?:Hand|Game) #(\d+):?\s+Tournament #(\d+),\s*(.+?)\s+-\s+Level/)
+  const header = block.match(
+    /PokerStars (?:Hand|Game) (?:#|Nr\. )(\d+):?\s+(?:Tournament|Turnier) #(\d+),\s*(.+?)\s+-\s+Level/
+  )
   if (!header) return null
   const handId = header[1]
   const tournamentId = header[2]
-  // Middle chunk is "<buy-in> <CUR> <game type>" or "Freeroll <game type>".
+
+  // Middle chunk: "<buy-in> <CUR> <game type>" or "Freeroll <game type>".
   const mid = header[3].trim()
   const buyInM = mid.match(/^(Freeroll|(?:[$€£₹][\d.,]+(?:\+[$€£₹][\d.,]+)*)\s*[A-Z]{0,3})/)
   const buyInSeg = buyInM ? buyInM[0] : ''
   const gameType = mid.slice(buyInSeg.length).trim() || 'Unknown'
-  const { buyIn, fee, currency } = parseBuyIn(buyInSeg)
-  const startDate = parseDate(block.slice(0, block.indexOf('\n') >= 0 ? block.indexOf('\n') + 200 : 400))
+  const { buyIn, fee, currency } = parseBuyInSegment(buyInSeg)
+  const startDate = parseTimestamp(block.slice(0, block.indexOf('\n') + 1 || 400))
 
-  const heroMatch = block.match(/Dealt to (\S+) \[/)
-  if (!heroMatch) return null // cannot compute hero stats without hole-card line
-  const hero = heroMatch[1]
+  // Hero: English "Dealt to X [", German "X  bekommt: ["
+  const heroMatch =
+    block.match(/Dealt to (\S+) \[/) || block.match(/^([^\n]+?)\s+bekommt:\s*\[/m)
+  if (!heroMatch) return null
+  const hero = heroMatch[1].trim()
+  const isHero = makeIsHero(hero)
 
-  // Section boundaries.
-  const iHole = markerIndex(block, 'HOLE CARDS')
-  const iFlop = markerIndex(block, 'FLOP')
-  const iTurn = markerIndex(block, 'TURN')
-  const iRiver = markerIndex(block, 'RIVER')
-  const iShow = markerIndex(block, 'SHOW DOWN')
-  const iSummary = markerIndex(block, 'SUMMARY')
+  // Section boundaries (markers are the same English words in DE files, except
+  // SHOWDOWN/SHOW DOWN and SUMMARY/ZUSAMMENFASSUNG).
+  const iHole = findMarker(block, 'HOLE CARDS')
+  const iFlop = findMarker(block, 'FLOP')
+  const iTurn = findMarker(block, 'TURN')
+  const iRiver = findMarker(block, 'RIVER')
+  const iShow = findMarker(block, 'SHOWDOWN', 'SHOW DOWN')
+  const iSummary = findMarker(block, 'ZUSAMMENFASSUNG', 'SUMMARY')
 
   const preflop = section(block, iHole, [iFlop, iShow, iSummary])
   const flop = section(block, iFlop, [iTurn, iShow, iSummary])
@@ -114,7 +116,7 @@ function parseHand(block: string): HandResult | null {
   const summary = iSummary >= 0 ? block.slice(iSummary) : ''
   const postflop = flop + turn + river
 
-  // --- Preflop sequence: VPIP / PFR / 3-bet ---
+  // --- Preflop: VPIP / PFR / 3-bet ---
   let vpip = 0
   let pfr = 0
   let threeBetOpp = 0
@@ -123,49 +125,51 @@ function parseHand(block: string): HandResult | null {
   let heroProcessed = false
   let heroFoldedPreflop = false
   for (const line of preflop.split('\n')) {
-    const m = line.match(/^\s*([^\s:]+):?\s+(folds|checks|calls|bets|raises|posts)\b/)
-    if (!m) continue
-    const player = m[1]
-    const verb = m[2]
-    if (player === hero && !heroProcessed && verb !== 'posts') {
+    const verb = classifyVerb(line)
+    if (!verb) continue
+    const heroLine = isHero(line)
+    if (heroLine && !heroProcessed && verb !== 'post') {
       if (raisesSeen >= 1) threeBetOpp = 1
-      if (VOLUNTARY.has(verb)) vpip = 1
-      if (verb === 'raises') {
+      if (verb === 'call' || verb === 'bet' || verb === 'raise') vpip = 1
+      if (verb === 'raise') {
         pfr = 1
         if (raisesSeen >= 1) threeBet = 1
       }
-      if (verb === 'folds') heroFoldedPreflop = true
+      if (verb === 'fold') heroFoldedPreflop = true
       heroProcessed = true
     }
-    if (verb === 'raises') raisesSeen++
+    if (verb === 'raise') raisesSeen++
   }
 
-  // --- Saw flop --- (hero reached the flop = there was a flop and hero didn't
-  // fold preflop; covers all-in players who have no postflop action lines)
   const sawFlop = iFlop >= 0 && !heroFoldedPreflop ? 1 : 0
 
   // --- Postflop aggression ---
   let aggActions = 0
   let callActions = 0
-  const heroActionRe = new RegExp(`^\\s*${esc(hero)}:?\\s+(bets|raises|calls)\\b`, 'gm')
-  let am: RegExpExecArray | null
-  while ((am = heroActionRe.exec(postflop)) !== null) {
-    if (am[1] === 'calls') callActions++
-    else aggActions++
+  for (const line of postflop.split('\n')) {
+    if (!isHero(line)) continue
+    const verb = classifyVerb(line)
+    if (verb === 'bet' || verb === 'raise') aggActions++
+    else if (verb === 'call') callActions++
   }
 
   // --- Showdown / wins ---
-  const heroShowRe = new RegExp(`^\\s*${esc(hero)}:?\\s+(shows|mucks)\\b`, 'm')
-  const wtsd =
-    (iShow >= 0 && heroShowRe.test(showdown)) ||
-    new RegExp(`${esc(hero)}\\b[^\\n]*\\bshowed\\b`).test(summary)
+  const showRe = new RegExp(`^\\s*${esc(hero)}\\s*:?\\s*(?:zeigt|shows|mucks)\\b`, 'm')
+  const wtsd = iShow >= 0 && showRe.test(showdown) ? 1 : 0
+  const wonHand =
+    new RegExp(`(?:^|\\n)\\s*${esc(hero)}\\s+(?:gewinnt|collected)\\b`).test(block) ||
+    new RegExp(`${esc(hero)}\\b[^\\n]*\\b(?:won|gewinnt) \\(`).test(summary)
       ? 1
       : 0
-  const heroCollected =
-    new RegExp(`${esc(hero)}\\b[^\\n]*\\bcollected\\b`).test(block) ||
-    new RegExp(`${esc(hero)}\\b[^\\n]*\\bwon \\(`).test(summary)
-  const wonHand = heroCollected ? 1 : 0
   const wonSd = wtsd && wonHand ? 1 : 0
+
+  // --- Finish place (hero busts): DE "X beendet das Turnier auf Platz N",
+  //     EN "finished the tournament in Nth place" ---
+  let finishPlace: number | null = null
+  const placeDe = block.match(new RegExp(`${esc(hero)} beendet das Turnier auf Platz (\\d+)`))
+  const placeEn = block.match(/finished (?:the tournament )?in (\d+)(?:st|nd|rd|th) place/i)
+  if (placeDe) finishPlace = parseInt(placeDe[1], 10)
+  else if (placeEn) finishPlace = parseInt(placeEn[1], 10)
 
   return {
     handId,
@@ -176,6 +180,7 @@ function parseHand(block: string): HandResult | null {
     currency,
     buyIn,
     fee,
+    finishPlace,
     vpip,
     pfr,
     threeBetOpp,
@@ -198,8 +203,8 @@ function detectSpeed(name: string): TournamentSpeed {
 
 /** Parse every hand in a hand-history file into per-hand results. */
 export function parsePokerStarsHands(content: string): HandResult[] {
-  const text = content.replace(/^﻿/, '')
-  const headerRe = /PokerStars (?:Hand|Game) #\d+/g
+  const text = content.replace(/^﻿/, '').replace(/\r\n?/g, '\n')
+  const headerRe = /PokerStars (?:Hand|Game) (?:#|Nr\. )\d+/g
   const indices: number[] = []
   let m: RegExpExecArray | null
   while ((m = headerRe.exec(text)) !== null) indices.push(m.index)
@@ -215,18 +220,30 @@ export function parsePokerStarsHands(content: string): HandResult[] {
   return hands
 }
 
+/** The hero name that appears most often across parsed hands. */
+export function dominantHero(hands: HandResult[]): string | null {
+  const counts = new Map<string, number>()
+  for (const h of hands) counts.set(h.hero, (counts.get(h.hero) ?? 0) + 1)
+  let best: string | null = null
+  let bestN = 0
+  for (const [hero, n] of counts) {
+    if (n > bestN) {
+      best = hero
+      bestN = n
+    }
+  }
+  return best
+}
+
 /**
  * Aggregate per-hand results into per-tournament Tournament records carrying
- * hero play stats. Hands are de-duplicated by hand id so the same hand counted
- * across multiple files (or re-imports) is not double-counted. Payout/finish
- * are unknown here (resultKnown = false) and get merged in from summaries.
+ * hero play stats. Hands are de-duplicated by hand id. Payout is unknown here
+ * (resultKnown = false) and gets merged in from summaries.
  */
 export function aggregateHands(allHands: HandResult[]): Tournament[] {
-  // De-duplicate by hand id.
   const uniq = new Map<string, HandResult>()
   for (const h of allHands) if (!uniq.has(h.handId)) uniq.set(h.handId, h)
 
-  // Group by tournament.
   const byTid = new Map<string, HandResult[]>()
   for (const h of uniq.values()) {
     if (!byTid.has(h.tournamentId)) byTid.set(h.tournamentId, [])
@@ -251,6 +268,7 @@ export function aggregateHands(allHands: HandResult[]): Tournament[] {
       callActions: sum(list, (h) => h.callActions)
     }
     const startDate = list.map((h) => h.startDate).sort()[0]
+    const finishPlace = list.map((h) => h.finishPlace).find((p) => p != null) ?? null
     const totalCost = first.buyIn + first.fee
     out.push({
       id: `pokerstars:${tid}`,
@@ -265,7 +283,7 @@ export function aggregateHands(allHands: HandResult[]): Tournament[] {
       totalCost,
       startDate,
       fieldSize: null,
-      finishPlace: null,
+      finishPlace,
       payout: 0,
       bounty: 0,
       reEntries: 0,
