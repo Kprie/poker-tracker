@@ -64,7 +64,13 @@ export function RollingRoiChart({ rows }: Props): JSX.Element {
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={visible} margin={{ top: 6, right: 6, bottom: 0, left: 4 }}>
                 <CartesianGrid strokeDasharray="2 4" stroke={chartGrid} vertical={false} />
-                <XAxis dataKey="index" tick={axisTick} tickLine={false} axisLine={false} />
+                <XAxis
+                  dataKey="index"
+                  tick={axisTick}
+                  tickLine={false}
+                  axisLine={false}
+                  interval={Math.max(0, Math.ceil(visible.length / 8) - 1)}
+                />
                 <YAxis
                   tick={axisTick}
                   tickLine={false}
