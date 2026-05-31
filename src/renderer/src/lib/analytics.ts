@@ -235,9 +235,9 @@ export interface ItmTier {
 
 const ITM_TIERS: { label: string; test: (t: Tournament) => boolean }[] = [
   { label: 'Kein Cash', test: (t) => t.payout === 0 },
-  { label: 'Min Cash', test: (t) => t.payout > 0 && t.payout < t.totalCost * 2 },
-  { label: 'Tiefer Run', test: (t) => t.payout >= t.totalCost * 2 && t.payout < t.totalCost * 5 },
-  { label: 'Großer Score', test: (t) => t.payout >= t.totalCost * 5 }
+  { label: '< 2× Kosten', test: (t) => t.payout > 0 && t.payout < t.totalCost * 2 },
+  { label: '2–5× Kosten', test: (t) => t.payout >= t.totalCost * 2 && t.payout < t.totalCost * 5 },
+  { label: '≥ 5× Kosten', test: (t) => t.payout >= t.totalCost * 5 }
 ]
 
 export function computeItmDepth(rows: Tournament[]): ItmTier[] {

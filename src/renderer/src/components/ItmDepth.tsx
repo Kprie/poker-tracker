@@ -65,6 +65,10 @@ export function ItmDepth({ data, totalResults }: Props): JSX.Element {
           </ResponsiveContainer>
         </div>
 
+        <p className="mt-3 text-[11px] text-muted">
+          Schwellen basieren auf Auszahlung relativ zu Gesamtkosten (inkl. Re-Entries).
+        </p>
+
         <table className="mt-4 w-full text-xs">
           <thead>
             <tr className="text-left text-muted">

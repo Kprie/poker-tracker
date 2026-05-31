@@ -33,7 +33,11 @@ export function PlayStyle({ s }: Props): JSX.Element | null {
     <Section
       title={
         <>
-          Spielstil <span className="font-normal text-muted">· aus Hand-Histories</span>
+          Spielstil{' '}
+          <span className="font-normal text-muted">· aus Hand-Histories</span>
+          <span className="ml-1.5 rounded bg-[#f0a500]/15 px-1.5 py-0.5 text-[10px] font-medium text-[#f0a500]">
+            nur PokerStars
+          </span>
         </>
       }
       aside={
