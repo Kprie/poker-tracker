@@ -26,13 +26,24 @@ interface ChartProps {
   data: GroupStat[]
   metric: 'profit' | 'roi'
   hint?: string
+  infoTip?: string
 }
 
-function GroupBarChart({ title, data, metric, hint }: ChartProps): JSX.Element {
+function GroupBarChart({ title, data, metric, hint, infoTip }: ChartProps): JSX.Element {
   return (
     <div className="card p-4">
       <div className="mb-1 flex items-baseline justify-between">
-        <h3 className="text-sm font-semibold tracking-tight text-text">{title}</h3>
+        <div className="flex items-center gap-1.5">
+          <h3 className="text-sm font-semibold tracking-tight text-text">{title}</h3>
+          {infoTip && (
+            <span className="group relative cursor-default">
+              <span className="select-none text-xs text-muted">ⓘ</span>
+              <span className="pointer-events-none absolute bottom-full left-1/2 z-10 mb-2 w-60 -translate-x-1/2 rounded-xl bg-[rgba(20,20,21,0.97)] px-3 py-2.5 text-[11px] leading-relaxed text-[#ededee] opacity-0 shadow-xl ring-1 ring-white/10 transition-opacity duration-150 group-hover:opacity-100">
+                {infoTip}
+              </span>
+            </span>
+          )}
+        </div>
         {hint && <span className="text-[11px] text-muted">{hint}</span>}
       </div>
       <div className="h-52">
@@ -88,7 +99,12 @@ export function Breakdown({ byBuyIn, bySpeed, byWeekday, byHour }: Props): JSX.E
     <Section title="Spieltendenzen" aside="ergebnisbasiert">
       <div className="grid grid-cols-1 gap-3 xl:grid-cols-2">
         <GroupBarChart title="ROI nach Buy-in-Stufe" data={byBuyIn} metric="roi" />
-        <GroupBarChart title="Profit nach Speed" data={bySpeed} metric="profit" />
+        <GroupBarChart
+          title="Profit nach Speed"
+          data={bySpeed}
+          metric="profit"
+          infoTip="Speed wird aus dem Turniernamen ermittelt. Enthält der Name kein Keyword (Turbo, Hyper, Regular), ist der Speed unbekannt — grau dargestellt und ans Ende sortiert."
+        />
         <GroupBarChart title="Profit nach Wochentag" data={byWeekday} metric="profit" />
         <GroupBarChart title="Profit nach Uhrzeit" data={byHour} metric="profit" hint="Startstunde" />
       </div>

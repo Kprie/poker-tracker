@@ -1,6 +1,6 @@
 {
   "name": "poker-tracker",
-  "version": "0.4.6",
+  "version": "0.4.7",
   "description": "Poker tournament tracker for PokerStars & GGPoker",
   "main": "./out/main/index.js",
   "author": "",

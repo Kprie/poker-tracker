@@ -101,14 +101,14 @@ export function detectPokerStarsPath(): string | null {
 
 let cache: AppData | null = null
 
-// Re-derive speed from the tournament name using current source-aware logic so
-// historical imports with wrong defaults are corrected on load.
+// Re-derive speed from the tournament name on every load so historical imports
+// with wrong defaults are corrected without requiring a re-import.
 function migrateSpeed(t: Tournament): TournamentSpeed {
   const n = (t.name ?? '').toLowerCase()
   if (n.includes('hyper')) return 'hyper'
   if (n.includes('turbo')) return 'turbo'
-  if (t.source === 'pokerstars') return n.includes('regular') ? 'regular' : 'unknown'
-  return 'regular' // GGPoker: descriptive names — no keyword means regular
+  if (n.includes('regular')) return 'regular'
+  return 'unknown'
 }
 
 export function loadData(): AppData {
