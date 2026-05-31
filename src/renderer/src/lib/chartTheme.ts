@@ -5,6 +5,7 @@ export const CHART_MONO = "'Geist Mono Variable', ui-monospace, monospace"
 
 export const CHART_GREEN = '#3ddc97'
 export const CHART_RED = '#f0686d'
+export const CHART_UNKNOWN = '#6b7280'
 
 /** Axis tick styling (mono, muted). */
 export const axisTick = { fontSize: 11, fill: '#9a9aa1', fontFamily: CHART_MONO } as const

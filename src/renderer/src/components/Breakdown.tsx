@@ -15,6 +15,7 @@ import {
   axisTick,
   CHART_GREEN,
   CHART_RED,
+  CHART_UNKNOWN,
   chartGrid,
   tooltipContentStyle,
   tooltipItemStyle
@@ -62,7 +63,10 @@ function GroupBarChart({ title, data, metric, hint }: ChartProps): JSX.Element {
             />
             <Bar dataKey={metric} radius={[6, 6, 2, 2]} maxBarSize={60}>
               {data.map((d) => (
-                <Cell key={d.key} fill={d[metric] >= 0 ? CHART_GREEN : CHART_RED} />
+                <Cell
+                  key={d.key}
+                  fill={d.key === 'Unknown' ? CHART_UNKNOWN : d[metric] >= 0 ? CHART_GREEN : CHART_RED}
+                />
               ))}
             </Bar>
           </BarChart>

@@ -190,7 +190,11 @@ const SPEED_LABEL: Record<string, string> = {
 }
 
 export function bySpeed(rows: Tournament[]): GroupStat[] {
-  return groupBy(rows, (t) => SPEED_LABEL[t.speed] ?? t.speed).sort((a, b) => b.count - a.count)
+  return groupBy(rows, (t) => SPEED_LABEL[t.speed] ?? t.speed).sort((a, b) => {
+    if (a.key === 'Unknown') return 1
+    if (b.key === 'Unknown') return -1
+    return b.count - a.count
+  })
 }
 
 export function byGameType(rows: Tournament[]): GroupStat[] {
