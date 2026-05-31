@@ -207,6 +207,48 @@ export function byHour(rows: Tournament[]): GroupStat[] {
   return stats.sort((a, b) => a.key.localeCompare(b.key))
 }
 
+export interface RollingRoiPoint {
+  date: string
+  roi: number
+  index: number
+}
+
+export function rollingRoiSeries(rows: Tournament[], window: number): RollingRoiPoint[] {
+  const sorted = [...rows].sort((a, b) => a.startDate.localeCompare(b.startDate))
+  const result: RollingRoiPoint[] = []
+  for (let i = window - 1; i < sorted.length; i++) {
+    const slice = sorted.slice(i - window + 1, i + 1)
+    const cost = sum(slice, (t) => t.totalCost)
+    if (cost === 0) continue
+    const profit = sum(slice, (t) => t.profit)
+    result.push({ date: sorted[i].startDate.slice(0, 10), roi: round(profit / cost), index: i + 1 })
+  }
+  return result
+}
+
+export interface ItmTier {
+  label: string
+  count: number
+  pct: number
+  avgProfit: number
+}
+
+const ITM_TIERS: { label: string; test: (t: Tournament) => boolean }[] = [
+  { label: 'Kein Cash', test: (t) => t.payout === 0 },
+  { label: 'Min Cash', test: (t) => t.payout > 0 && t.payout < t.totalCost * 2 },
+  { label: 'Tiefer Run', test: (t) => t.payout >= t.totalCost * 2 && t.payout < t.totalCost * 5 },
+  { label: 'Großer Score', test: (t) => t.payout >= t.totalCost * 5 }
+]
+
+export function computeItmDepth(rows: Tournament[]): ItmTier[] {
+  const total = rows.length
+  return ITM_TIERS.map(({ label, test }) => {
+    const matches = rows.filter(test)
+    const avgProfit = matches.length ? round(sum(matches, (t) => t.profit) / matches.length) : 0
+    return { label, count: matches.length, pct: total ? matches.length / total : 0, avgProfit }
+  })
+}
+
 function sum<T>(arr: T[], f: (x: T) => number): number {
   return arr.reduce((a, x) => a + f(x), 0)
 }

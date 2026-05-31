@@ -6,6 +6,8 @@ import { Reveal } from './components/Reveal'
 import { PlayStyle } from './components/PlayStyle'
 import { BankrollChart } from './components/BankrollChart'
 import { Breakdown } from './components/Breakdown'
+import { RollingRoiChart } from './components/RollingRoiChart'
+import { ItmDepth } from './components/ItmDepth'
 import { TournamentTable } from './components/TournamentTable'
 import { Upload } from './components/icons'
 import { useStore } from './store'
@@ -17,6 +19,7 @@ import {
   byHour,
   bySpeed,
   byWeekday,
+  computeItmDepth,
   computeKpis,
   computePlayStyle,
   withResults
@@ -77,6 +80,7 @@ export default function App(): JSX.Element {
   const kpis = useMemo(() => computeKpis(filtered), [filtered])
   const playStyle = useMemo(() => computePlayStyle(filtered), [filtered])
   const bankroll = useMemo(() => bankrollSeries(resultRows), [resultRows])
+  const itmDepth = useMemo(() => computeItmDepth(resultRows), [resultRows])
   const breakdowns = useMemo(
     () => ({
       buyIn: byBuyIn(resultRows),
@@ -160,6 +164,14 @@ export default function App(): JSX.Element {
             </Reveal>
 
             <Reveal delay={100}>
+              <RollingRoiChart rows={resultRows} />
+            </Reveal>
+
+            <Reveal delay={120}>
+              <ItmDepth data={itmDepth} totalResults={resultRows.length} />
+            </Reveal>
+
+            <Reveal delay={140}>
               <TournamentTable rows={filtered} />
             </Reveal>
           </>
