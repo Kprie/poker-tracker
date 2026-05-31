@@ -20,8 +20,7 @@ function detectSpeed(name: string): TournamentSpeed {
   const n = name.toLowerCase()
   if (n.includes('hyper')) return 'hyper'
   if (n.includes('turbo')) return 'turbo'
-  if (n.includes('regular')) return 'regular'
-  return 'unknown'
+  return 'regular'
 }
 
 function num(s: string | undefined | null): number {

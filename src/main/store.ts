@@ -101,9 +101,13 @@ export function detectPokerStarsPath(): string | null {
 
 let cache: AppData | null = null
 
-function migrateSpeed(speed: string, name: string): TournamentSpeed {
-  if (speed !== 'regular') return speed as TournamentSpeed
-  const n = name.toLowerCase()
+// PokerStars summary names are never descriptive ("No Limit Hold'em"),
+// so 'regular' there just means the old parser's default — migrate to 'unknown'.
+// GGPoker names ARE descriptive, so 'regular' without a keyword is intentional.
+function migrateSpeed(t: Tournament): TournamentSpeed {
+  if (t.source !== 'pokerstars') return t.speed
+  if (t.speed !== 'regular') return t.speed
+  const n = (t.name ?? '').toLowerCase()
   if (n.includes('hyper') || n.includes('turbo') || n.includes('regular')) return 'regular'
   return 'unknown'
 }
@@ -121,7 +125,7 @@ export function loadData(): AppData {
       const tournaments = (parsed.tournaments ?? []).map((t) => ({
         ...t,
         resultKnown: t.resultKnown ?? true,
-        speed: migrateSpeed(t.speed, t.name ?? '')
+        speed: migrateSpeed(t)
       }))
       cache = {
         settings: { ...DEFAULT_SETTINGS, ...parsed.settings },
