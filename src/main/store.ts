@@ -101,15 +101,14 @@ export function detectPokerStarsPath(): string | null {
 
 let cache: AppData | null = null
 
-// PokerStars summary names are never descriptive ("No Limit Hold'em"),
-// so 'regular' there just means the old parser's default — migrate to 'unknown'.
-// GGPoker names ARE descriptive, so 'regular' without a keyword is intentional.
+// Re-derive speed from the tournament name using current source-aware logic so
+// historical imports with wrong defaults are corrected on load.
 function migrateSpeed(t: Tournament): TournamentSpeed {
-  if (t.source !== 'pokerstars') return t.speed
-  if (t.speed !== 'regular') return t.speed
   const n = (t.name ?? '').toLowerCase()
-  if (n.includes('hyper') || n.includes('turbo') || n.includes('regular')) return 'regular'
-  return 'unknown'
+  if (n.includes('hyper')) return 'hyper'
+  if (n.includes('turbo')) return 'turbo'
+  if (t.source === 'pokerstars') return n.includes('regular') ? 'regular' : 'unknown'
+  return 'regular' // GGPoker: descriptive names — no keyword means regular
 }
 
 export function loadData(): AppData {
