@@ -38,3 +38,26 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: npx electron-builder --win --publish always
+
+      - name: Generate SHA256 checksums
+        shell: pwsh
+        run: |
+          $version = (Get-Content package.json | ConvertFrom-Json).version
+          $files = Get-ChildItem dist -Filter "*.exe" | Where-Object { $_.Name -notlike "*unpacked*" }
+          $lines = foreach ($f in $files) {
+            $hash = (Get-FileHash $f.FullName -Algorithm SHA256).Hash.ToLower()
+            "$hash  $($f.Name)"
+          }
+          $lines | Out-File -Encoding utf8 "dist/SHA256SUMS-$version.txt"
+          Write-Host "Checksums written:"
+          Get-Content "dist/SHA256SUMS-$version.txt"
+
+      - name: Upload checksums to release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: pwsh
+        run: |
+          $version = (Get-Content package.json | ConvertFrom-Json).version
+          $tag = "v$version"
+          $file = "dist/SHA256SUMS-$version.txt"
+          gh release upload $tag $file --clobber
