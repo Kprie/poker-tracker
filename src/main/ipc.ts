@@ -67,7 +67,7 @@ export function registerIpc(): void {
   // Let the user pick the PokerStars TournSummary folder.
   ipcMain.handle('pokerstars:choose-folder', async () => {
     const res = await dialog.showOpenDialog({
-      title: 'PokerStars TournSummary-Ordner wählen',
+      title: 'PokerStars-Ordner wählen (z. B. PokerStars.DE\\)',
       properties: ['openDirectory']
     })
     if (res.canceled || res.filePaths.length === 0) return null
