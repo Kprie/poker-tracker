@@ -11,16 +11,14 @@ import {
 import type { GroupStat } from '../lib/analytics'
 import { money, pct } from '../lib/format'
 import { Section } from './Section'
-
-const MONO = "'Geist Mono Variable', ui-monospace, monospace"
-
-const tooltipStyle = {
-  background: 'rgba(20,20,21,0.96)',
-  border: '1px solid rgba(255,255,255,0.12)',
-  borderRadius: 12,
-  fontSize: 12,
-  boxShadow: '0 16px 40px -16px rgba(0,0,0,0.8)'
-} as const
+import {
+  axisTick,
+  CHART_GREEN,
+  CHART_RED,
+  chartGrid,
+  tooltipContentStyle,
+  tooltipItemStyle
+} from '../lib/chartTheme'
 
 interface ChartProps {
   title: string
@@ -39,16 +37,10 @@ function GroupBarChart({ title, data, metric, hint }: ChartProps): JSX.Element {
       <div className="h-52">
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={data} margin={{ top: 8, right: 6, bottom: 0, left: 4 }}>
-            <CartesianGrid strokeDasharray="2 4" stroke="rgba(255,255,255,0.06)" vertical={false} />
-            <XAxis
-              dataKey="key"
-              tick={{ fontSize: 11, fill: '#9a9aa1', fontFamily: MONO }}
-              tickLine={false}
-              axisLine={false}
-              interval={0}
-            />
+            <CartesianGrid strokeDasharray="2 4" stroke={chartGrid} vertical={false} />
+            <XAxis dataKey="key" tick={axisTick} tickLine={false} axisLine={false} interval={0} />
             <YAxis
-              tick={{ fontSize: 11, fill: '#9a9aa1', fontFamily: MONO }}
+              tick={axisTick}
               tickLine={false}
               axisLine={false}
               width={54}
@@ -56,9 +48,9 @@ function GroupBarChart({ title, data, metric, hint }: ChartProps): JSX.Element {
             />
             <Tooltip
               cursor={{ fill: 'rgba(255,255,255,0.05)' }}
-              contentStyle={tooltipStyle}
+              contentStyle={tooltipContentStyle}
               labelStyle={{ color: '#ededee', fontWeight: 600, marginBottom: 2 }}
-              itemStyle={{ color: '#ededee' }}
+              itemStyle={tooltipItemStyle}
               formatter={(value: number) => [
                 metric === 'roi' ? pct(value) : money(value),
                 metric === 'roi' ? 'ROI' : 'Profit'
@@ -70,7 +62,7 @@ function GroupBarChart({ title, data, metric, hint }: ChartProps): JSX.Element {
             />
             <Bar dataKey={metric} radius={[6, 6, 2, 2]} maxBarSize={60}>
               {data.map((d) => (
-                <Cell key={d.key} fill={d[metric] >= 0 ? '#3ddc97' : '#f0686d'} />
+                <Cell key={d.key} fill={d[metric] >= 0 ? CHART_GREEN : CHART_RED} />
               ))}
             </Bar>
           </BarChart>

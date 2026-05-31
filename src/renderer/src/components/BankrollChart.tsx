@@ -9,17 +9,24 @@ import {
 } from 'recharts'
 import type { BankrollPoint } from '../lib/analytics'
 import { money } from '../lib/format'
+import {
+  axisTick,
+  CHART_GREEN,
+  CHART_RED,
+  chartGrid,
+  tooltipContentStyle,
+  tooltipItemStyle,
+  tooltipLabelStyle
+} from '../lib/chartTheme'
 
 interface Props {
   data: BankrollPoint[]
   height?: number
 }
 
-const MONO = "'Geist Mono Variable', ui-monospace, monospace"
-
 export function BankrollChart({ data, height = 248 }: Props): JSX.Element {
   const last = data.length ? data[data.length - 1].cumulative : 0
-  const color = last >= 0 ? '#3ddc97' : '#f0686d'
+  const color = last >= 0 ? CHART_GREEN : CHART_RED
 
   return (
     <div style={{ height }}>
@@ -31,30 +38,19 @@ export function BankrollChart({ data, height = 248 }: Props): JSX.Element {
               <stop offset="100%" stopColor={color} stopOpacity={0} />
             </linearGradient>
           </defs>
-          <CartesianGrid strokeDasharray="2 4" stroke="rgba(255,255,255,0.06)" vertical={false} />
-          <XAxis
-            dataKey="index"
-            tick={{ fontSize: 11, fill: '#9a9aa1', fontFamily: MONO }}
-            tickLine={false}
-            axisLine={false}
-          />
+          <CartesianGrid strokeDasharray="2 4" stroke={chartGrid} vertical={false} />
+          <XAxis dataKey="index" tick={axisTick} tickLine={false} axisLine={false} />
           <YAxis
-            tick={{ fontSize: 11, fill: '#9a9aa1', fontFamily: MONO }}
+            tick={axisTick}
             tickLine={false}
             axisLine={false}
             width={62}
             tickFormatter={(v) => money(v)}
           />
           <Tooltip
-            contentStyle={{
-              background: 'rgba(20,20,21,0.96)',
-              border: '1px solid rgba(255,255,255,0.12)',
-              borderRadius: 12,
-              fontSize: 12,
-              boxShadow: '0 16px 40px -16px rgba(0,0,0,0.8)'
-            }}
-            labelStyle={{ color: '#9a9aa1', marginBottom: 2 }}
-            itemStyle={{ color: '#ededee', fontWeight: 600 }}
+            contentStyle={tooltipContentStyle}
+            labelStyle={tooltipLabelStyle}
+            itemStyle={tooltipItemStyle}
             formatter={(value: number, name) => [money(value), name === 'cumulative' ? 'Bankroll' : name]}
             labelFormatter={(_l, payload) => {
               const p = payload?.[0]?.payload as BankrollPoint | undefined
