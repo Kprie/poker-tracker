@@ -1,7 +1,8 @@
 import { create } from 'zustand'
 import type { AppSettings, ImportResult, PokerStarsScanResult, Tournament } from '../../shared/types'
-import type { PokerApi } from '../../preload'
 import type { Filters } from './lib/analytics'
+
+type PokerApi = Window['api']
 
 // Fallback used when running outside Electron (e.g. browser preview) so the UI
 // still renders instead of crashing on a missing api.
