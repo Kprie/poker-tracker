@@ -103,7 +103,7 @@ export function Breakdown({ byBuyIn, bySpeed, byWeekday, byHour }: Props): JSX.E
           title="Profit nach Speed"
           data={bySpeed}
           metric="profit"
-          infoTip="Speed wird aus dem Turniernamen ermittelt. Enthält der Name kein Keyword (Turbo, Hyper, Regular), ist der Speed unbekannt — grau dargestellt und ans Ende sortiert."
+          infoTip="Speed wird aus dem Turniernamen ermittelt. Enthält der Name kein Keyword (Turbo, Hyper, Regular), ist der Speed unbekannt — grau dargestellt und zuletzt einsortiert."
         />
         <GroupBarChart title="Profit nach Wochentag" data={byWeekday} metric="profit" />
         <GroupBarChart title="Profit nach Uhrzeit" data={byHour} metric="profit" hint="Startstunde" />
