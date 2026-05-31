@@ -66,10 +66,12 @@ export function RollingRoiChart({ rows }: Props): JSX.Element {
                 <CartesianGrid strokeDasharray="2 4" stroke={chartGrid} vertical={false} />
                 <XAxis
                   dataKey="index"
+                  type="number"
+                  domain={['dataMin', 'dataMax']}
                   tick={axisTick}
                   tickLine={false}
                   axisLine={false}
-                  interval={Math.max(0, Math.ceil(visible.length / 8) - 1)}
+                  tickCount={8}
                 />
                 <YAxis
                   tick={axisTick}

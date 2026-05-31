@@ -2,7 +2,7 @@ import { app } from 'electron'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs'
 import { homedir } from 'os'
 import { join } from 'path'
-import type { AppData, AppSettings, Tournament } from '../shared/types'
+import type { AppData, AppSettings, Tournament, TournamentSpeed } from '../shared/types'
 
 const DEFAULT_SETTINGS: AppSettings = {
   pokerStarsPath: null
@@ -101,6 +101,13 @@ export function detectPokerStarsPath(): string | null {
 
 let cache: AppData | null = null
 
+function migrateSpeed(speed: string, name: string): TournamentSpeed {
+  if (speed !== 'regular') return speed as TournamentSpeed
+  const n = name.toLowerCase()
+  if (n.includes('hyper') || n.includes('turbo') || n.includes('regular')) return 'regular'
+  return 'unknown'
+}
+
 export function loadData(): AppData {
   if (cache) return cache
   const file = dataFilePath()
@@ -109,9 +116,12 @@ export function loadData(): AppData {
       const parsed = JSON.parse(readFileSync(file, 'utf-8')) as AppData
       // Migration: records saved before `resultKnown` existed were all summary
       // imports (payout/finish known), so default missing values to true.
+      // Migration: pre-0.4.3 parser defaulted to 'regular' when speed was
+      // unknown; re-evaluate based on the name so stored data stays accurate.
       const tournaments = (parsed.tournaments ?? []).map((t) => ({
         ...t,
-        resultKnown: t.resultKnown ?? true
+        resultKnown: t.resultKnown ?? true,
+        speed: migrateSpeed(t.speed, t.name ?? '')
       }))
       cache = {
         settings: { ...DEFAULT_SETTINGS, ...parsed.settings },
