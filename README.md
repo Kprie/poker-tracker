@@ -35,8 +35,8 @@ Importiert Turnierergebnisse von **PokerStars** und **GGPoker**, wertet die eige
 - **Konkrete Karten-Eingabe**: Hero-Hand, Board (0–5 Karten), Villain-Hand über 52-Karten-Picker
 - **Exakte Wahrscheinlichkeiten** — vollständige Board-Enumeration:
   - River: direkte Auswertung (1 Board, exakt)
-  - Turn: Enumeration aller 44 möglichen River-Karten (exakt)
-  - Flop: Enumeration aller C(45,2) = 990 Turn+River-Kombinationen (exakt)
+  - Turn: Enumeration aller 44 möglichen River-Karten
+  - Flop: Enumeration aller C(45,2) = 990 Turn+River-Kombinationen
   - Preflop: Monte Carlo 20.000 Iterationen (SE < 0,4 %)
 - **Hand-Erkennung**: automatische Anzeige der aktuellen Handkategorie (Paar Asse, Flush, etc.)
 - **Outs-Anzeige**: konkrete Karten, die Hero gewinnen lassen (Turn/River)
