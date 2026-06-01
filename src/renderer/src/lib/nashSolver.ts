@@ -43,7 +43,7 @@ const MAX_COMBOS = 1326  // C(52,2)
 
 // ─── ICM-Szenario-Berechnung ──────────────────────────────────────────────────
 
-interface IcmDeltas {
+export interface IcmDeltas {
   /** ICM-Equity-Zunahme wenn Hero den Pot gewinnt (alle folden). */
   winPot: number
   /** ICM-Equity-Zunahme wenn Hero gecallt wird und gewinnt. */
@@ -54,7 +54,7 @@ interface IcmDeltas {
   currentEq: number
 }
 
-function computeIcmDeltas(
+export function computeIcmDeltas(
   stacks: number[],
   payouts: number[],
   heroIdx: number,

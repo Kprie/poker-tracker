@@ -36,7 +36,7 @@ export const ALL_HAND_IDS: HandId[] = (() => {
 // ─── Handstärke-Modell ───────────────────────────────────────────────────────
 // Gibt 0–1 zurück. Höchster Wert: AA = 1.0. Niedrigster: 32o ≈ 0.12.
 
-function handStrength(id: HandId): number {
+export function handStrength(id: HandId): number {
   const isPair = id.length === 2
   const hi = RANKS.indexOf(id[0] as typeof RANKS[number])
   const lo = isPair ? hi : RANKS.indexOf(id[1] as typeof RANKS[number])
