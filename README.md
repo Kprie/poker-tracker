@@ -1,23 +1,61 @@
-# Poker Tracker
+# Proker
 
-Desktop-App (Electron + React + TypeScript) zum Auswerten von Pokerturnier-Ergebnissen
-von **PokerStars** und **GGPoker**.
+**Poker-Turnier-Tracker und ICM-Analyse-Tool** für Windows.
+
+Importiert Turnierergebnisse von **PokerStars** und **GGPoker**, wertet die eigene Spielhistorie aus und bietet einen vollständigen **ICM-Analyse-Tab** mit Nash-Solver, Runden-Simulator und Push/Fold-Referenz.
+
+---
 
 ## Features
 
-- **PokerStars einlesen** – liest alle `*.txt` Tournament-Summaries aus dem konfigurierten
-  Ordner. Der Standardort wird automatisch erkannt; per „ändern" wählbar.
-- **PokerCraft hochladen** – importiert GGPoker PokerCraft-Exporte (`.zip` mit Summaries
-  oder einzelne `.txt`).
-- **Filter** nach Quelle (PokerStars / GGPoker / beide).
-- **Zeitraum** über Presets (7T/30T/90T/1J/Alle) oder freie Datumsauswahl.
-- **Statistiken**: Netto-Profit, ROI, Buy-ins gesamt, Auszahlungen, ITM-Quote, größter Cash.
-- **Spielstil** (aus Hand-Histories): VPIP, PFR, 3-Bet, Aggression Factor, WTSD, W$SD.
-- **Bankroll-Verlauf** als Flächendiagramm.
-- **Spieltendenzen** (ergebnisbasiert): ROI nach Buy-in-Stufe, Profit nach Speed,
-  Wochentag und Startuhrzeit.
-- **Turnier-Tabelle** mit Sortierung.
-- **Wählbarer Datenordner** – Speicherort frei festlegbar, Daten bleiben über Neustarts erhalten.
+### Dashboard — Turnier-Auswertung
+
+- **PokerStars einlesen** — liest alle `*.txt` Tournament-Summaries und Hand-Histories rekursiv aus dem konfigurierten Ordner
+- **PokerCraft hochladen** — importiert GGPoker PokerCraft-Exporte (`.zip` oder einzelne `.txt`)
+- **Kennzahlen**: Netto-Profit, ROI, Buy-ins gesamt, ITM-Quote, größter Cash, Ø Buy-in
+- **Spielstil** (aus PokerStars Hand-Histories): VPIP, PFR, 3-Bet, Aggression Factor, WTSD, W$SD
+- **Bankroll-Verlauf** als Flächendiagramm mit gleitendem ROI-Fenster (20/50/100 Turniere)
+- **ITM-Tiefe**: Auszahlungsverteilung über 4 Tiers (kein Cash / <2× / 2–5× / ≥5× Buy-in)
+- **Spieltendenzen**: ROI nach Buy-in-Stufe, Speed, Wochentag und Startuhrzeit
+- **Turnier-Tabelle** — sortier- und filterbar nach allen Spalten
+- **Filter** nach Quelle (PokerStars / GGPoker / beide) und Zeitraum (Presets oder frei)
+
+### ICM-Analyse-Tab
+
+#### ICM-Equity-Rechner
+- **Malmuth-Harville-Algorithmus** — berechnet exakte ICM-Equities für bis zu 9 Spieler
+- **8 Auszahlungs-Presets**: Heads-Up, SNG 6/9-Handed, Final Table 6/9, PKO, Satellit
+- **Anzeigemodi**: ICM % / ICM € / Chip EV / Chip BB
+- **Antes-Unterstützung** mit effektivem Stack
+- **Bubble-Factor-Matrix** — zeigt für jedes Spielerpaar, wie viel stärker ein Chip-Verlust wiegt als ein Chip-Gewinn
+- **Ladder-Analyse** — gestapeltes Balkendiagramm: Equity-Beitrag je Auszahlungsplatz pro Spieler
+- **Chip EV vs. ICM** — Vergleichsdiagramm mit Differenzlabels
+
+#### Runden-Simulation *(neu in 0.5.0)*
+- **Konkrete Karten-Eingabe**: Hero-Hand, Board (0–5 Karten), Villain-Hand über 52-Karten-Picker
+- **Exakte Wahrscheinlichkeiten** — vollständige Board-Enumeration:
+  - River: direkte Auswertung (1 Board, exakt)
+  - Turn: Enumeration aller 44 möglichen River-Karten (exakt)
+  - Flop: Enumeration aller C(45,2) = 990 Turn+River-Kombinationen (exakt)
+  - Preflop: Monte Carlo 20.000 Iterationen (SE < 0,4 %)
+- **Hand-Erkennung**: automatische Anzeige der aktuellen Handkategorie (Paar Asse, Flush, etc.)
+- **Outs-Anzeige**: konkrete Karten, die Hero gewinnen lassen (Turn/River)
+- **ICM-Szenarien**: Fold / Push alle folden / Push gecallt+gewonnen / Push gecallt+verloren
+- Alle Wahrscheinlichkeiten sind **mathematisch berechnet** — kein historischer Datensatz
+
+#### Spot-Analyse (Nash Push/Fold)
+- **Iterativer Nash-Solver** via Alternating Best Response (ABR)
+- ICM-adjustierte EVs nach Malmuth-Harville für jede Hand
+- **13×13 Hand-Grid** mit Nash-Farben (grün = pushen, gelb = grenzwertig, grau = folden)
+- Zeigt: Equity vs. Call-Range, ICM-EV aller Szenarien, Konvergenz-Info
+- Equity-Tabelle: 200 Monte-Carlo-Iterationen je Combo-Paar, gecacht in localStorage
+
+#### Push/Fold-Referenz
+- Vorgefertigte Spots: HU SB/BB, 3-handed, 4–6-handed (BTN/CO/HJ/UTG)
+- Stack-Regler 2–25 BB, Positions-Auswahl
+- Spots speichern und laden (localStorage)
+
+---
 
 ## Anleitung für Nutzer
 
@@ -27,14 +65,14 @@ von **PokerStars** und **GGPoker**.
 
 1. Auf die [**Releases-Seite**](https://github.com/Kprie/poker-tracker/releases) gehen.
 2. Unter dem neuesten Release eine Datei herunterladen:
-   - **`Poker Tracker-Setup-x.y.z.exe`** – Installer (installiert die App, Startmenü-Eintrag), oder
-   - **`Poker Tracker-Portable-x.y.z.exe`** – läuft direkt per Doppelklick, ohne Installation.
+   - **`Proker-Setup-x.y.z.exe`** — Installer (Startmenü-Eintrag), oder
+   - **`Proker-Portable-x.y.z.exe`** — läuft direkt ohne Installation.
 3. Datei ausführen. Windows SmartScreen kann warnen (App ist nicht signiert) →
    *„Weitere Informationen" → „Trotzdem ausführen"*.
 
-Beim ersten Start erscheint ein einmaliger Nutzungs-Hinweis – mit **„Verstanden"** bestätigen.
+Beim ersten Start erscheint ein einmaliger Nutzungshinweis — mit **„Verstanden"** bestätigen.
 
-**Variante B – aus dem Quellcode** (für Entwickler; benötigt [Node.js](https://nodejs.org) 20+):
+**Variante B – aus dem Quellcode** (benötigt [Node.js](https://nodejs.org) 20+):
 
 ```bash
 git clone https://github.com/Kprie/poker-tracker.git
@@ -45,125 +83,81 @@ npm run dev
 
 ### 2. PokerStars vorbereiten
 
-Damit Daten vorhanden sind, müssen im PokerStars-Client die Verläufe gespeichert werden:
-
-1. PokerStars öffnen → **Einstellungen** → **Hand-History** (bzw. „Verlauf speichern").
-2. **„Meine Hand-Historie speichern"** aktivieren. Tournament-Summaries werden automatisch
-   gespeichert.
-3. Standard-Speicherort unter Windows (enthält beide Unterordner `HandHistory` und
-   `TournSummary`):
+1. PokerStars öffnen → **Einstellungen** → **Hand-History**.
+2. **„Meine Hand-Historie speichern"** aktivieren.
+3. Standard-Speicherort Windows:
    ```
-   C:\Users\<DEINNAME>\AppData\Local\PokerStars\
+   C:\Users\<NAME>\AppData\Local\PokerStars\
    ```
 
-> Tipp: Auf den **übergeordneten** `PokerStars`-Ordner zeigen, nicht nur auf einen Unterordner –
-> die App durchsucht ihn rekursiv und findet so Summaries **und** Hand-Histories.
+> **Tipp:** Auf den übergeordneten `PokerStars`-Ordner zeigen — die App durchsucht ihn rekursiv und findet `HandHistory` und `TournSummary` automatisch.
 
 ### 3. GGPoker / PokerCraft exportieren
 
-1. GGPoker-Client öffnen → **PokerCraft** → **Game History / Tournaments**.
-2. Die gewünschten Turniere bzw. den Zeitraum auswählen.
-3. Auf **Download / Export** klicken – du erhältst eine **`.zip`-Datei** mit je einer
-   `.txt`-Summary pro Turnier (oder einzelne `.txt`-Dateien). Diese Datei merken/ablegen.
+1. GGPoker-Client → **PokerCraft** → **Game History / Tournaments**.
+2. Zeitraum wählen → **Download / Export** → `.zip`-Datei speichern.
 
 ### 4. Daten importieren
 
 Oben rechts in der App:
 
-- **„PokerStars einlesen"** – nutzt den eingestellten Ordner (oben links angezeigt). Mit
-  **„ändern"** lässt sich der Ordner wechseln; der Standardort wird automatisch erkannt.
-  Nach dem Klick erscheint unter dem Pfad eine Zeile *„Letzter Scan: … Datei(en) gescannt"*.
-- **„PokerCraft hochladen"** – im Dateidialog die heruntergeladene GGPoker-`.zip` (oder
-  `.txt`-Dateien) auswählen.
+- **„PokerStars einlesen"** — scannt den konfigurierten Ordner (mit „ändern" wechselbar).
+- **„PokerCraft hochladen"** — Dateidialog für die GGPoker-`.zip` oder `.txt`-Dateien.
 
-Importe sind wiederholbar: Bereits vorhandene Turniere werden erkannt und aktualisiert,
-nicht doppelt gezählt. Du kannst also jederzeit neue Dateien nachladen.
+Importe sind idempotent: vorhandene Turniere werden aktualisiert, nicht doppelt gezählt.
 
-> **Datenordner:** Unter den Pfaden gibt es die Zeile *„Datenordner"* mit **„ändern"**.
-> Damit legst du fest, wo die getrackten Daten gespeichert werden (`poker-data.json`).
-> Standardmäßig im Benutzerprofil – die Daten bleiben auch nach einem Neustart erhalten.
-> Wählst du einen eigenen Ordner (z. B. in einer Cloud/auf einem USB-Stick), werden die
-> bestehenden Daten dorthin übernommen.
+### 5. ICM-Analyse nutzen
 
-### 5. Auswerten
+Den Tab **„ICM-Analyse"** oben in der Navigation auswählen. Dort stehen vier Sektionen bereit:
 
-- **Quelle filtern:** Buttons **Alle / PokerStars / GGPoker** oben links.
-- **Zeitraum wählen:** Presets **7T / 30T / 90T / 1J / Alle** oder die beiden Datumsfelder
-  für einen eigenen Bereich.
-- Darunter erscheinen automatisch: **Kennzahlen** (Profit, ROI, ITM …), **Spielstil**
-  (VPIP/PFR/3-Bet/AF/WTSD/W$SD – nur aus PokerStars-Hand-Histories), **Bankroll-Verlauf**,
-  **Tendenzen-Diagramme** und die sortierbare **Turnier-Tabelle** (Spaltenkopf klicken =
-  sortieren).
+| Sektion | Verwendung |
+|---|---|
+| **ICM-Equity-Rechner** | Stacks und Auszahlungen eingeben → Bubble-Faktoren, Equity-Vergleich |
+| **Runden-Simulation** | Konkrete Karten wählen → exakte Win/Tie/Lose-Wahrscheinlichkeit + ICM-EV |
+| **Spot-Analyse** | Stack in BB, Position, Spielerzahl → Nash Push/Fold-Range mit ICM-Rangliste |
+| **Push/Fold-Referenz** | Schnellübersicht für Standardsituationen, speicherbar |
 
-> Hinweis: Turniere, von denen nur eine Hand-History (ohne Summary) vorliegt, zeigen
-> **Payout/Profit** als „—", weil das Geld-Ergebnis dort nicht enthalten ist. Sie fließen
-> trotzdem in die Spielstil-Statistiken ein.
+---
 
-## Dateitypen & Zusammenführung
+## Dateitypen & Datenmodell
 
-PokerStars erzeugt zwei Dateitypen, die unterschiedliche Informationen liefern:
+| Typ | Quelle | Inhalt |
+|-----|--------|--------|
+| Tournament Summary | PokerStars `TournSummary/` | Buy-in, Platzierung, Payout |
+| Hand History | PokerStars `HandHistory/` | Spielstil-Stats (VPIP/PFR/…) |
+| PokerCraft Export | GGPoker `.zip` | Buy-in, Platzierung, Payout |
 
-| Typ | Ordner | liefert |
-|-----|--------|---------|
-| **Tournament Summary** | `TournSummary` | Buy-in, Platzierung, Payout |
-| **Hand History** | `HandHistory` | jede Hand → Spielstil-Stats + Buy-in |
+Datensätze derselben Turnier-ID werden zusammengeführt. Turniere ohne Summary (`resultKnown = false`) fließen nicht in Profit/ROI/ITM ein, aber in die Spielstil-Statistiken.
 
-Der PokerStars-Scan durchsucht den gewählten Ordner **rekursiv** und erkennt pro Datei
-automatisch den Typ. Records für dasselbe Turnier (gleiche Tournament-ID) werden
-**zusammengeführt**: das Summary liefert Payout/Platzierung, die Hand-History den Spielstil.
-Turniere ohne Summary haben kein bekanntes Ergebnis (`resultKnown = false`) und werden aus
-Profit/ROI/ITM ausgeklammert, fließen aber in die Spielstil-Statistiken ein.
+Daten werden lokal als `poker-data.json` im Electron-`userData`-Ordner gespeichert (oder einem frei wählbaren Ordner).
 
-GGPoker liefert seine Daten als **PokerCraft-Export** (`.zip` mit Summary-`.txt`s).
-
-Die Daten werden lokal als JSON unter dem Electron-`userData`-Ordner gespeichert
-(`poker-data.json`). Importe sind idempotent (De-Duplizierung über die Turnier-ID).
-
-## Nutzung & Richtlinien (wichtig)
-
-Das Tool ist für die **private Offline-Auswertung der eigenen Spielergebnisse** gebaut und
-versucht bewusst, innerhalb der Tool-Richtlinien von PokerStars und GGPoker zu bleiben.
-
-**Bewusste Design-Einschränkungen — nicht entfernen:**
-
-- **Manueller Import, kein Datei-Watcher.** Dateien werden nur per Button eingelesen. Es gibt
-  bewusst kein `fs.watch`/Polling/Auto-Monitoring, damit der Charakter klar „nach der Session"
-  bleibt und nichts in Richtung Echtzeit-Nutzung geht.
-- **Kein Echtzeit-HUD / kein Overlay** über dem Pokertisch.
-- **Nur Hero-Daten.** Es werden ausschließlich die eigenen aggregierten Stats gespeichert,
-  **keine Gegner-Statistiken** und keine Roh-Hände (keine Massendatenanalyse).
-- **Lokal.** Keine Upload-/Sharing-Funktion für Hand-Histories oder PokerCraft-Daten.
-- **Nicht hinzufügen:** RTA/Solver, Equity-/Range-Rechner, Seating-Skripte, dynamische HUDs,
-  Daten-Export an Dritte.
-
-**Risiko-Einordnung:** PokerStars erlaubt Tools, die nur eigene Spieldaten nutzen
-(Post-Session-Analyse) → geringes Risiko. GGPoker ist deutlich restriktiver
-(Security & Ecology Policy verbietet 3rd-Party-Import von PokerCraft/HH-Daten breit) → der
-GGPoker-Import erfolgt **auf eigenes Risiko**; sanktionierter Weg ist PokerCraft selbst.
-Keine Rechtsberatung — aktuelle ToS der Anbieter selbst prüfen.
+---
 
 ## Entwicklung
 
 ```bash
 npm install
-npm run dev        # startet die App im Dev-Modus
-npm run typecheck  # TypeScript prüfen
+npm run dev        # Dev-Modus (Electron + Vite Hot-Reload)
+npm run typecheck  # TypeScript prüfen (vor jedem Commit)
 npm run build      # Produktions-Bundle nach out/
-npm run build:win  # Windows-Installer (NSIS) nach dist/
+npm run build:win  # Windows-Installer + Portable nach dist/
 ```
 
-## Datenformate
+Stack: Electron 31 · electron-vite · React 18 · Tailwind 3 · Recharts · TypeScript 5 strict · Zustand
 
-**PokerStars** und **GGPoker** liefern beide Tournament-Summary-Textdateien
-(ein Turnier pro Datei). Die Parser liegen in `src/main/parsers/`.
+---
 
-### Hinweise / Annahmen
+## Nutzung & Richtlinien
 
-- GGPoker-Auszahlungen in **T$** (Tournament-Dollars/Tickets) werden 1:1 mit der
-  Buy-in-Währung verrechnet.
-- **Spielstil-Stats** (VPIP/PFR/3-Bet/AF/WTSD/W$SD) stammen aus PokerStars-Hand-Histories.
-  Hände werden per Hand-ID dedupliziert; All-in-Spieler werden korrekt als „Flop gesehen"
-  gezählt. Limp-Reraises als 3-Bet werden (selten) nicht erfasst.
-- Der PokerStars-**Summary**-Parser basiert auf dem dokumentierten Standardformat und sollte
-  mit einer echten Summary gegengeprüft werden (bislang nur Hand-History-Samples vorhanden).
-- GGPoker-Hand-Histories (für GG-Spielstil) sind noch nicht angebunden — derzeit nur PokerStars.
+Das Tool dient der **privaten Offline-Auswertung der eigenen Spielergebnisse**.
+
+**Bewusste Design-Einschränkungen:**
+
+- **Manueller Import, kein Datei-Watcher** — kein Echtzeit-Monitoring
+- **Kein HUD / kein Overlay** über dem Pokertisch
+- **Nur Hero-Daten** — keine Gegner-Statistiken
+- **Lokal** — keine Upload-Funktion für Hand-Histories
+
+Der ICM-Analyse-Tab ist ein **Post-Session-Analyse-Tool** — alle Berechnungen laufen lokal und offline.
+
+**Risiko-Einordnung:** PokerStars erlaubt Post-Session-Analyse-Tools für eigene Daten (geringes Risiko). GGPoker ist restriktiver bezüglich Drittanbieter-Imports — GGPoker-Import erfolgt auf eigenes Risiko. Aktuelle ToS der Anbieter selbst prüfen.

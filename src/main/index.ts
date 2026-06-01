@@ -11,7 +11,7 @@ function createWindow(): void {
     show: false,
     backgroundColor: '#0d1117',
     autoHideMenuBar: true,
-    title: 'Poker Tracker',
+    title: 'Proker',
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
       sandbox: false,

@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Toolbar } from './components/Toolbar'
 import { Disclaimer } from './components/Disclaimer'
 import { KpiTile } from './components/KpiTile'
@@ -10,6 +10,7 @@ import { RollingRoiChart } from './components/RollingRoiChart'
 import { ItmDepth } from './components/ItmDepth'
 import { TournamentTable } from './components/TournamentTable'
 import { Upload } from './components/icons'
+import { IcmTab } from './components/IcmTab'
 import { useStore } from './store'
 import { money, pct } from './lib/format'
 import {
@@ -70,6 +71,7 @@ function Toast(): JSX.Element | null {
 export default function App(): JSX.Element {
   const { loading, tournaments, filters } = useStore()
   const init = useStore((s) => s.init)
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'icm'>('dashboard')
 
   useEffect(() => {
     init()
@@ -94,10 +96,30 @@ export default function App(): JSX.Element {
   const profitTone = kpis.profit > 0 ? 'profit' : kpis.profit < 0 ? 'loss' : 'neutral'
   const roiTone = kpis.roi > 0 ? 'profit' : kpis.roi < 0 ? 'loss' : 'neutral'
 
+  const tabClass = (tab: 'dashboard' | 'icm'): string =>
+    activeTab === tab
+      ? 'border-b-2 border-accent pb-2.5 pt-3 px-4 text-sm font-semibold text-text'
+      : 'border-b-2 border-transparent pb-2.5 pt-3 px-4 text-sm font-medium text-muted hover:text-text transition-colors'
+
   return (
     <div className="min-h-[100dvh]">
       <Disclaimer />
       <Toolbar />
+      <div className="mx-auto w-full max-w-[1400px] px-6">
+        <div className="flex gap-1 border-b border-white/10">
+          <button className={tabClass('dashboard')} onClick={() => setActiveTab('dashboard')}>
+            Dashboard
+          </button>
+          <button className={tabClass('icm')} onClick={() => setActiveTab('icm')}>
+            ICM-Analyse
+          </button>
+        </div>
+      </div>
+      {activeTab === 'icm' ? (
+        <main className="mx-auto w-full max-w-[1400px] px-6 pb-20 pt-6">
+          <IcmTab />
+        </main>
+      ) : (
       <main className="mx-auto flex w-full max-w-[1400px] flex-col gap-6 px-6 pb-20 pt-3">
         {loading ? (
           <div className="py-28 text-center text-muted">Lädt…</div>
@@ -177,6 +199,7 @@ export default function App(): JSX.Element {
           </>
         )}
       </main>
+      )}
       <Toast />
     </div>
   )

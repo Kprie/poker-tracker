@@ -1,5 +1,5 @@
-appId: com.pokertracker.app
-productName: Poker Tracker
+appId: com.proker.app
+productName: Proker
 directories:
   output: dist
   buildResources: build

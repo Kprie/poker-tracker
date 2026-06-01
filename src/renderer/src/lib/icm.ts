@@ -1,0 +1,129 @@
+export type EvMode = 'icm_pct' | 'icm_usd' | 'chip_ev' | 'chip_bb'
+
+function sum(arr: number[]): number {
+  return arr.reduce((a, b) => a + b, 0)
+}
+
+/**
+ * Berechnet ICM-Equity nach Malmuth-Harville (rekursiv).
+ * Laufzeit O(n! / (n-m)!) — für ≤10 Spieler und ≤5 bezahlte Plätze schnell genug.
+ */
+export function computeIcmEquities(stacks: number[], payouts: number[]): number[] {
+  const n = stacks.length
+  const m = Math.min(payouts.length, n)
+  const equity = new Array<number>(n).fill(0)
+
+  function recurse(remaining: number[], depth: number, prob: number): void {
+    if (depth >= m || remaining.length === 0) return
+    const total = sum(remaining.map(i => stacks[i]))
+    if (total === 0) return
+    for (const i of remaining) {
+      const p = stacks[i] / total
+      equity[i] += prob * p * payouts[depth]
+      recurse(remaining.filter(j => j !== i), depth + 1, prob * p)
+    }
+  }
+
+  recurse(Array.from({ length: n }, (_, i) => i), 0, 1)
+  return equity
+}
+
+/**
+ * Liefert pro Spieler und Auszahlungsposition den Equity-Beitrag dieser Position.
+ * result[player][positionIndex] = Equity-Anteil aus Platz (positionIndex+1).
+ * Summe je Spieler = computeIcmEquities(stacks, payouts)[player].
+ */
+export function computePositionEquities(stacks: number[], payouts: number[]): number[][] {
+  const n = stacks.length
+  const m = Math.min(payouts.length, n)
+  const posEq: number[][] = Array.from({ length: n }, () => new Array<number>(m).fill(0))
+
+  function recurse(remaining: number[], depth: number, prob: number): void {
+    if (depth >= m || remaining.length === 0) return
+    const total = sum(remaining.map(i => stacks[i]))
+    if (total === 0) return
+    for (const i of remaining) {
+      const p = stacks[i] / total
+      posEq[i][depth] += prob * p * payouts[depth]
+      recurse(remaining.filter(j => j !== i), depth + 1, prob * p)
+    }
+  }
+
+  recurse(Array.from({ length: n }, (_, i) => i), 0, 1)
+  return posEq
+}
+
+/**
+ * Bubble Factor BF[i][j]: wie viel stärker 1 Chip Verlust gegen Spieler j für Spieler i
+ * wiegt als 1 Chip Gewinn gegen j. BF > 1 = Verlust wiegt mehr als Gewinn.
+ * Diagonale = NaN.
+ */
+export function computeBubbleFactors(stacks: number[], payouts: number[]): number[][] {
+  const n = stacks.length
+  const delta = Math.max(1, Math.floor(sum(stacks) * 0.001))
+  const baseEquities = computeIcmEquities(stacks, payouts)
+  const bf: number[][] = Array.from({ length: n }, () => new Array<number>(n).fill(NaN))
+
+  for (let i = 0; i < n; i++) {
+    for (let j = 0; j < n; j++) {
+      if (i === j) continue
+
+      if (stacks[j] >= delta) {
+        const sw = [...stacks]
+        sw[i] += delta
+        sw[j] -= delta
+        const gain = computeIcmEquities(sw, payouts)[i] - baseEquities[i]
+
+        if (stacks[i] > delta) {
+          const sl = [...stacks]
+          sl[i] -= delta
+          sl[j] += delta
+          const loss = baseEquities[i] - computeIcmEquities(sl, payouts)[i]
+          bf[i][j] = gain > 0 ? loss / gain : Infinity
+        } else {
+          bf[i][j] = Infinity
+        }
+      } else {
+        bf[i][j] = Infinity
+      }
+    }
+  }
+  return bf
+}
+
+/**
+ * Wandelt rohe ICM-Equities in den gewünschten Anzeigemodus um.
+ */
+export function convertEquities(
+  equities: number[],
+  stacks: number[],
+  payouts: number[],
+  mode: EvMode,
+  bbSize?: number,
+): { values: number[]; unit: string } {
+  const totalPayout = sum(payouts)
+  const totalChips = sum(stacks)
+
+  switch (mode) {
+    case 'icm_usd':
+      return { values: equities, unit: '€' }
+
+    case 'icm_pct':
+      return {
+        values: equities.map(e => (totalPayout > 0 ? (e / totalPayout) * 100 : 0)),
+        unit: '%',
+      }
+
+    case 'chip_ev':
+      return {
+        values: stacks.map(s => (totalChips > 0 ? (s / totalChips) * totalPayout : 0)),
+        unit: '€ (Chip EV)',
+      }
+
+    case 'chip_bb':
+      return {
+        values: stacks.map(s => (bbSize && bbSize > 0 ? s / bbSize : s)),
+        unit: 'BB',
+      }
+  }
+}

@@ -17,7 +17,7 @@ export function Logo({ size = 40, className }: Props): JSX.Element {
       fill="none"
       className={className}
       role="img"
-      aria-label="Poker Tracker"
+      aria-label="Proker"
     >
       {/* Chip outer notched ring */}
       <circle cx="24" cy="24" r="22" stroke="#3a3a40" strokeWidth="2.4" />

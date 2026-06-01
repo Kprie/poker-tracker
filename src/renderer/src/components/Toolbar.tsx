@@ -47,8 +47,8 @@ export function Toolbar(): JSX.Element {
             <div className="flex items-center gap-3">
               <Logo size={38} />
               <div className="leading-none">
-                <h1 className="text-[17px] font-semibold tracking-tightest">Poker Tracker</h1>
-                <p className="mt-1 text-[11px] text-muted">PokerStars &amp; GGPoker</p>
+                <h1 className="text-[17px] font-semibold tracking-tightest">Proker</h1>
+                <p className="mt-1 text-[11px] text-muted">PokerStars · GGPoker · ICM-Analyse</p>
               </div>
             </div>
 

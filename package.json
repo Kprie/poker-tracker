@@ -1,7 +1,7 @@
 {
-  "name": "poker-tracker",
-  "version": "0.4.8",
-  "description": "Poker tournament tracker for PokerStars & GGPoker",
+  "name": "proker",
+  "version": "0.5.0",
+  "description": "Proker — Poker-Turnier-Tracker und ICM-Analyse-Tool",
   "main": "./out/main/index.js",
   "author": "",
   "scripts": {
