@@ -1,5 +1,4 @@
 import { useMemo, useState } from 'react'
-import type { EvMode } from '../lib/icm'
 import { computeBubbleFactors, computePositionEquities } from '../lib/icm'
 import { Section } from './Section'
 import { IcmCalculator } from './IcmCalculator'
@@ -18,9 +17,6 @@ const RESULT_TABS = [
   { key: 'compare', label: 'Chip EV vs ICM' },
 ] as const
 type ResultTab = typeof RESULT_TABS[number]['key']
-
-// Void-Nutzung von EvMode, um ungenutzte Import-Warnung zu unterdrücken
-void (undefined as unknown as EvMode)
 
 export function IcmTab(): JSX.Element {
   const [result, setResult] = useState<IcmResult | null>(null)
@@ -72,8 +68,8 @@ export function IcmTab(): JSX.Element {
         </div>
       </Section>
 
-      {/* ── Runden-Simulation ────────────────────────────────────────────── */}
-      <Section title="Runden-Simulation">
+      {/* ── Hand-Analyse ─────────────────────────────────────────────────── */}
+      <Section title="Hand-Analyse">
         <RoundSimulator />
       </Section>
 

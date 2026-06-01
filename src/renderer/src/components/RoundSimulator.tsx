@@ -1,19 +1,30 @@
 import { useState } from 'react'
 import type { Card } from '../lib/cards'
-import { cardRank, cardSuit } from '../lib/cards'
+import { handIdToCombos } from '../lib/cards'
 import { computeIcmEquities } from '../lib/icm'
 import { computeExactEquity, bestHandScore, handRankName } from '../lib/exactEquity'
 import type { ExactEquityResult } from '../lib/exactEquity'
+import { computeEquityMC } from '../lib/equity'
+import type { RangeCombo } from '../lib/equity'
 import { CardPicker, cardLabel, cardColorClass } from './CardPicker'
+import { ALL_HAND_IDS, handStrength } from '../data/pushFoldData'
 
 // ─── Typen ────────────────────────────────────────────────────────────────────
 
 type SlotKey = 'h0' | 'h1' | 'b0' | 'b1' | 'b2' | 'b3' | 'b4' | 'v0' | 'v1'
+type VillainMode = 'cards' | 'range'
+type BoardStage = 'Preflop' | 'Flop' | 'Turn' | 'River' | 'Ungültig'
 
 interface SimResult {
-  equity: ExactEquityResult
   heroHandName: string
-  villainHandName: string
+  villainHandName: string | null  // null im Range-Modus
+  board: Card[]
+  stage: BoardStage
+  // Equity
+  exactEquity: ExactEquityResult | null   // nur bei spezifischen Karten
+  rangeEquity: { hero: number; stdDev: number; iterations: number } | null
+  pCall: number   // 0–1: Wahrscheinlichkeit dass Villain callt
+  // ICM (nur Preflop)
   fold: number
   pushWinBlinds: number
   pushCallWin: number
@@ -26,7 +37,7 @@ interface SimResult {
 
 const SLOT_LABELS: Record<SlotKey, string> = {
   h0: 'Hero 1', h1: 'Hero 2',
-  b0: 'Board 1', b1: 'Board 2', b2: 'Board 3', b3: 'Board 4', b4: 'Board 5',
+  b0: 'Flop 1', b1: 'Flop 2', b2: 'Flop 3', b3: 'Turn', b4: 'River',
   v0: 'Villain 1', v1: 'Villain 2',
 }
 
@@ -36,67 +47,107 @@ function slotGroup(s: SlotKey): 'hero' | 'board' | 'villain' {
   return 'villain'
 }
 
+function boardStage(boardLen: number): BoardStage {
+  if (boardLen === 0) return 'Preflop'
+  if (boardLen === 3) return 'Flop'
+  if (boardLen === 4) return 'Turn'
+  if (boardLen === 5) return 'River'
+  return 'Ungültig'
+}
+
+/** Baut eine Villain-Range aus den stärksten `widthPct`% aller Hände (nach Handstärke). */
+function buildVillainRange(widthPct: number, blocked: Card[]): RangeCombo[] {
+  const blockSet = new Set(blocked)
+  const sorted = [...ALL_HAND_IDS].sort((a, b) => handStrength(b) - handStrength(a))
+  const n = Math.round(sorted.length * widthPct / 100)
+  const result: RangeCombo[] = []
+  for (const id of sorted.slice(0, n)) {
+    for (const [c1, c2] of handIdToCombos(id)) {
+      if (!blockSet.has(c1) && !blockSet.has(c2)) {
+        result.push({ cards: [c1, c2], weight: 1.0 })
+      }
+    }
+  }
+  return result
+}
+
+// ─── Stil-Konstanten ─────────────────────────────────────────────────────────
+
 const selectCls = 'bg-surface border border-white/10 rounded-lg px-3 py-1.5 text-sm text-text focus:outline-none focus:ring-1 focus:ring-accent'
 const inputCls  = 'bg-surface border border-white/10 rounded-lg px-3 py-1.5 text-sm text-text tabnum focus:outline-none focus:ring-1 focus:ring-accent w-full'
 
 // ─── Karten-Slot ──────────────────────────────────────────────────────────────
 
-function CardSlot({ card, label, active, onClick }: {
-  card: Card | null; label: string; active: boolean; onClick: () => void
+function CardSlot({ card, label, active, onClick, clearable, onClear }: {
+  card: Card | null; label: string; active: boolean
+  onClick: () => void; clearable?: boolean; onClear?: () => void
 }): JSX.Element {
   return (
-    <button
-      onClick={onClick}
-      title={label}
-      className={[
-        'h-10 w-8 rounded border text-center leading-none transition-all font-mono flex flex-col items-center justify-center',
-        active  ? 'border-accent ring-1 ring-accent bg-accent/10'
-        : card !== null ? 'border-white/20 bg-slate-800 hover:border-white/40'
-        : 'border-dashed border-white/20 bg-slate-900/50 hover:border-white/40',
-      ].join(' ')}
-      style={{ fontSize: 11 }}
-    >
-      {card !== null ? (
-        <span className={cardColorClass(card)}>
-          {cardLabel(card)}
-        </span>
-      ) : (
-        <span className="text-slate-600 text-xs">+</span>
+    <div className="relative">
+      <button
+        onClick={onClick}
+        title={label}
+        className={[
+          'h-10 w-8 rounded border text-center transition-all font-mono flex flex-col items-center justify-center',
+          active  ? 'border-accent ring-1 ring-accent bg-accent/10'
+          : card !== null ? 'border-white/20 bg-slate-800 hover:border-white/40'
+          : 'border-dashed border-white/20 bg-slate-900/50 hover:border-white/40',
+        ].join(' ')}
+        style={{ fontSize: 11 }}
+      >
+        {card !== null ? (
+          <span className={cardColorClass(card)}>{cardLabel(card)}</span>
+        ) : (
+          <span className="text-slate-600 text-xs">+</span>
+        )}
+      </button>
+      {clearable && card !== null && onClear && (
+        <button
+          onClick={onClear}
+          className="absolute -top-1 -right-1 h-3.5 w-3.5 rounded-full bg-slate-700 border border-white/20 text-slate-400 hover:text-white hover:bg-slate-600 flex items-center justify-center"
+          style={{ fontSize: 8 }}
+          title={`${label} entfernen`}
+        >
+          ×
+        </button>
       )}
-    </button>
+    </div>
   )
 }
 
-// ─── ICM-Szenarien-Tabelle ────────────────────────────────────────────────────
+// ─── ICM-Szenarien-Tabelle (nur Preflop) ─────────────────────────────────────
 
-function IcmTable({ result }: { result: SimResult }): JSX.Element {
-  const { fold, pushWinBlinds, pushCallWin, pushCallLose, equity, payouts } = result
-  const totalPayout = payouts.reduce((a, b) => a + b, 0)
-  const pCall = equity.win + equity.lose + equity.tie > 0
-    ? Math.min(1, result.stacks.length > 1 ? 0.5 : 0)   // vereinfacht; nutze equity
-    : 0
+function IcmTable({ result }: { result: SimResult }): JSX.Element | null {
+  if (result.stage !== 'Preflop') return null
+
+  const { fold, pushWinBlinds, pushCallWin, pushCallLose, pCall } = result
+  const totalPayout = result.payouts.reduce((a, b) => a + b, 0)
+
+  // Equity für gewichteten EV:
+  const heroEq = result.exactEquity
+    ? result.exactEquity.win + result.exactEquity.tie * 0.5
+    : result.rangeEquity?.hero ?? 0.5
 
   const evPush =
     (1 - pCall) * (pushWinBlinds - fold) +
-    pCall * equity.win * (pushCallWin - fold) +
-    pCall * (equity.lose + equity.tie * 0.5) * (pushCallLose - fold)
+    pCall * heroEq * (pushCallWin - fold) +
+    pCall * (1 - heroEq) * (pushCallLose - fold)
 
   function fmt(v: number): string {
-    if (totalPayout > 0)
-      return v.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €'
+    if (totalPayout > 0) return v.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €'
     return v.toLocaleString('de-DE', { maximumFractionDigits: 4 })
   }
 
   const rows = [
-    { label: 'Fold (aktueller Stack)', val: fold },
-    { label: 'Push — alle folden', val: pushWinBlinds },
-    { label: 'Push — gecallt & gewonnen', val: pushCallWin },
-    { label: 'Push — gecallt & verloren', val: pushCallLose },
+    { label: 'Fold',                       val: fold },
+    { label: 'Push — alle folden',         val: pushWinBlinds },
+    { label: 'Push — gecallt & gewonnen',  val: pushCallWin },
+    { label: 'Push — gecallt & verloren',  val: pushCallLose },
   ]
 
   return (
     <div className="rounded-lg border border-white/10 p-4 flex flex-col gap-3">
-      <p className="text-xs font-medium text-muted">ICM-Equity-Szenarien (Malmuth-Harville)</p>
+      <p className="text-xs font-medium text-muted">ICM-Equity-Szenarien (Malmuth-Harville · Preflop)</p>
       <table className="w-full text-sm">
         <thead>
           <tr className="border-b border-white/10">
@@ -121,12 +172,17 @@ function IcmTable({ result }: { result: SimResult }): JSX.Element {
         </tbody>
       </table>
 
-      <div className="rounded-lg bg-white/[0.03] px-3 py-2.5 flex items-center gap-3">
-        <span className="text-xs text-muted">Gewichteter Push-EV:</span>
+      {/* Gewichteter Push-EV */}
+      <div className="rounded-lg bg-white/[0.03] px-3 py-2.5 flex items-center justify-between">
+        <div>
+          <span className="text-xs text-muted">Gewichteter Push-EV</span>
+          <span className="text-xs text-muted ml-2">
+            (P(Call) = {(pCall * 100).toFixed(0)} % · Equity = {(heroEq * 100).toFixed(1)} %)
+          </span>
+        </div>
         <span className={`text-sm font-semibold tabnum ${evPush >= 0 ? 'text-profit' : 'text-loss'}`}>
           {evPush >= 0 ? '+' : ''}{fmt(evPush)}
         </span>
-        <span className="text-xs text-muted">(vereinfacht — ohne konkrete Call-Frequenz)</span>
       </div>
     </div>
   )
@@ -141,6 +197,10 @@ export function RoundSimulator(): JSX.Element {
   const [villainCards, setVillainCards] = useState<[Card | null, Card | null]>([null, null])
   const [activeSlot,   setActiveSlot]   = useState<SlotKey | null>('h0')
 
+  // Villain-Modus
+  const [villainMode,     setVillainMode]     = useState<VillainMode>('cards')
+  const [rangeWidthPct,   setRangeWidthPct]   = useState(30)
+
   // Situation
   const [players,      setPlayers]      = useState(2)
   const [bbSize,       setBbSize]       = useState(200)
@@ -150,22 +210,23 @@ export function RoundSimulator(): JSX.Element {
   const [payoutInputs, setPayoutInputs] = useState<string[]>(['65', '35'])
 
   // Ergebnis
-  const [loading,  setLoading]  = useState(false)
-  const [result,   setResult]   = useState<SimResult | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [result,  setResult]  = useState<SimResult | null>(null)
 
-  // ── Karten-Verwaltung ───────────────────────────────────────────────────────
+  // ── Karten-Verwaltung ─────────────────────────────────────────────────────
 
-  function allCards(): Card[] {
+  function allUsedCards(): Card[] {
     return [
       ...heroCards.filter((c): c is Card => c !== null),
       ...boardCards.filter((c): c is Card => c !== null),
-      ...villainCards.filter((c): c is Card => c !== null),
+      ...(villainMode === 'cards' ? villainCards.filter((c): c is Card => c !== null) : []),
     ]
   }
 
   function blockedFor(slot: SlotKey): Card[] {
     const group = slotGroup(slot)
-    return allCards().filter(c => {
+    const all = allUsedCards()
+    return all.filter(c => {
       const inHero    = heroCards.includes(c)
       const inBoard   = boardCards.includes(c)
       const inVillain = villainCards.includes(c)
@@ -183,21 +244,24 @@ export function RoundSimulator(): JSX.Element {
     return villainCards.filter((c): c is Card => c !== null)
   }
 
+  /**
+   * Karte in Slot setzen/entfernen.
+   * Verbesserung gegenüber Vorgänger: Karten können jederzeit ersetzt werden,
+   * nicht nur wenn der Slot leer ist.
+   */
   function handleToggle(c: Card): void {
     if (activeSlot === null) return
     const group = slotGroup(activeSlot)
 
     if (group === 'hero') {
       const next: [Card | null, Card | null] = [...heroCards]
-      if (next[0] === c || next[1] === c) {
-        // Deselect
-        if (next[0] === c) next[0] = null
-        else next[1] = null
-      } else {
-        const idx = activeSlot === 'h0' ? 0 : 1
-        if (next[idx] !== null) return  // Slot belegt → erst deselect
+      const idx = activeSlot === 'h0' ? 0 : 1
+      const other = 1 - idx
+
+      if (next[idx] === c)      { next[idx] = null }          // Deselect
+      else if (next[other] === c) { next[other] = null }       // In anderem Slot deselect
+      else {
         next[idx] = c
-        // Auto-Advance zum nächsten freien Slot
         if (idx === 0 && next[1] === null) setActiveSlot('h1')
       }
       setHeroCards(next)
@@ -205,24 +269,27 @@ export function RoundSimulator(): JSX.Element {
     } else if (group === 'board') {
       const next: [Card | null, Card | null, Card | null, Card | null, Card | null] = [...boardCards]
       const idx = parseInt(activeSlot[1])
-      if (next[idx] === c) {
-        next[idx] = null
+
+      // Karte in anderem Slot vorhanden → dort entfernen
+      const existing = next.indexOf(c)
+      if (existing !== -1) {
+        next[existing] = null
       } else {
-        if (next[idx] !== null) return
         next[idx] = c
-        // Auto-Advance
         const nextFree = next.findIndex((x, i) => x === null && i > idx)
         if (nextFree !== -1) setActiveSlot(`b${nextFree}` as SlotKey)
       }
       setBoardCards(next)
 
     } else {
+      // villain
       const next: [Card | null, Card | null] = [...villainCards]
       const idx = activeSlot === 'v0' ? 0 : 1
-      if (next[0] === c || next[1] === c) {
-        if (next[idx] === c) next[idx] = null
-      } else {
-        if (next[idx] !== null) return
+      const other = 1 - idx
+
+      if (next[idx] === c)       { next[idx] = null }
+      else if (next[other] === c) { next[other] = null }
+      else {
         next[idx] = c
         if (idx === 0 && next[1] === null) setActiveSlot('v1')
       }
@@ -230,42 +297,82 @@ export function RoundSimulator(): JSX.Element {
     }
   }
 
-  // ── Spieler-Anzahl-Änderung ─────────────────────────────────────────────────
-
-  function handlePlayersChange(n: number): void {
-    setPlayers(n)
-    setStacks(prev => {
-      const next = Array.from({ length: n }, (_, i) => prev[i] ?? Math.round(stacks[0] || 2000))
-      return next
-    })
+  function clearAll(): void {
+    setHeroCards([null, null])
+    setBoardCards([null, null, null, null, null])
+    setVillainCards([null, null])
+    setActiveSlot('h0')
+    setResult(null)
   }
 
-  // ── Analyse ─────────────────────────────────────────────────────────────────
+  function clearCard(slot: SlotKey): void {
+    const group = slotGroup(slot)
+    if (group === 'hero') {
+      const idx = slot === 'h0' ? 0 : 1
+      const next: [Card | null, Card | null] = [...heroCards]; next[idx] = null
+      setHeroCards(next)
+    } else if (group === 'board') {
+      const idx = parseInt(slot[1])
+      const next: [Card | null, Card | null, Card | null, Card | null, Card | null] = [...boardCards]; next[idx] = null
+      setBoardCards(next)
+    } else {
+      const idx = slot === 'v0' ? 0 : 1
+      const next: [Card | null, Card | null] = [...villainCards]; next[idx] = null
+      setVillainCards(next)
+    }
+  }
+
+  // ── Analyse ──────────────────────────────────────────────────────────────
 
   function handleAnalyze(): void {
     if (heroCards[0] === null || heroCards[1] === null) return
-    if (villainCards[0] === null || villainCards[1] === null) return
+    const heroC = heroCards as [Card, Card]
+    const board  = boardCards.filter((c): c is Card => c !== null)
+    const stage  = boardStage(board.length)
+
+    if (stage === 'Ungültig') return  // 1 oder 2 Karten
+
+    if (villainMode === 'cards' && (villainCards[0] === null || villainCards[1] === null)) return
 
     setLoading(true)
     setResult(null)
 
     setTimeout(() => {
-      const hero    = heroCards as [Card, Card]
-      const villain = villainCards as [Card, Card]
-      const board   = boardCards.filter((c): c is Card => c !== null)
-      const payouts = payoutInputs.slice(0, paidPlaces).map(p => parseFloat(p) || 0)
+      const payouts    = payoutInputs.slice(0, paidPlaces).map(p => parseFloat(p) || 0)
       const fullStacks = stacks.slice(0, players)
+      const n          = fullStacks.length
+      const callerIdx  = 1
 
-      const equity = computeExactEquity(hero, villain, board)
+      // ── Equity ────────────────────────────────────────────────────────
+      let exactEquity: ExactEquityResult | null = null
+      let rangeEquity: SimResult['rangeEquity'] = null
+      let pCall = 0
 
-      // Hand-Namen
-      const heroScore    = bestHandScore([hero[0], hero[1], ...board])
-      const villainScore = bestHandScore([villain[0], villain[1], ...board])
+      if (villainMode === 'cards') {
+        const vilC = villainCards as [Card, Card]
+        exactEquity = computeExactEquity(heroC, vilC, board)
+        pCall = 1.0   // Villain hat konkrete Karten → call ist gesichert
 
-      // ICM-Szenarien (Push-Analyse für Preflop)
-      const n = fullStacks.length
+      } else {
+        const blocked = [...heroC, ...board]
+        const range = buildVillainRange(rangeWidthPct, blocked)
+        if (range.length > 0) {
+          const mc = computeEquityMC(heroC, range, 3000)
+          rangeEquity = { hero: mc.equity, stdDev: mc.stdDev, iterations: mc.iterations }
+          // pCall = Anteil nicht-blockierter Kombos in der Range
+          pCall = Math.min(1, range.length / 1326)
+        }
+      }
+
+      // ── Hand-Namen ────────────────────────────────────────────────────
+      const heroScore    = bestHandScore([heroC[0], heroC[1], ...board])
+      const villainScore = villainMode === 'cards'
+        ? bestHandScore([...(villainCards as [Card, Card]), ...board])
+        : -1
+
+      // ── ICM-Szenarien (nur Preflop) ───────────────────────────────────
       const pot = Math.round(bbSize * 1.5) + ante * n
-      const heroIdx = 0, callerIdx = 1
+      const heroIdx = 0
       const baseEq = computeIcmEquities(fullStacks, payouts)
       const fold   = baseEq[heroIdx]
 
@@ -275,19 +382,23 @@ export function RoundSimulator(): JSX.Element {
       const pushWinBlinds = computeIcmEquities(sWinPot, payouts)[heroIdx]
 
       const sWinCall = [...fullStacks]
-      sWinCall[heroIdx] = (fullStacks[heroIdx] ?? 0) + eff + pot
+      sWinCall[heroIdx]   = (fullStacks[heroIdx] ?? 0) + eff + pot
       sWinCall[callerIdx] = Math.max(0, (fullStacks[callerIdx] ?? 0) - eff)
       const pushCallWin = computeIcmEquities(sWinCall, payouts)[heroIdx]
 
       const sLoseCall = [...fullStacks]
       sLoseCall[callerIdx] = (fullStacks[callerIdx] ?? 0) + eff + pot
-      sLoseCall[heroIdx] = Math.max(0, (fullStacks[heroIdx] ?? 0) - eff)
+      sLoseCall[heroIdx]   = Math.max(0, (fullStacks[heroIdx] ?? 0) - eff)
       const pushCallLose = computeIcmEquities(sLoseCall, payouts)[heroIdx]
 
       setResult({
-        equity,
         heroHandName:    heroScore >= 0 ? handRankName(heroScore) : '—',
-        villainHandName: villainScore >= 0 ? handRankName(villainScore) : '—',
+        villainHandName: villainScore >= 0 ? handRankName(villainScore) : null,
+        board,
+        stage,
+        exactEquity,
+        rangeEquity,
+        pCall,
         fold,
         pushWinBlinds,
         pushCallWin,
@@ -299,16 +410,16 @@ export function RoundSimulator(): JSX.Element {
     }, 0)
   }
 
-  // ── Render ──────────────────────────────────────────────────────────────────
+  // ── Ableitungen ──────────────────────────────────────────────────────────
 
   const heroOk    = heroCards[0] !== null && heroCards[1] !== null
-  const villainOk = villainCards[0] !== null && villainCards[1] !== null
+  const villainOk = villainMode === 'range'
+    ? rangeWidthPct > 0
+    : villainCards[0] !== null && villainCards[1] !== null
   const board     = boardCards.filter((c): c is Card => c !== null)
-
-  const boardStage = board.length === 0 ? 'Preflop'
-    : board.length === 3 ? 'Flop'
-    : board.length === 4 ? 'Turn'
-    : board.length === 5 ? 'River' : 'Unvollständig'
+  const stage     = boardStage(board.length)
+  const invalidBoard = stage === 'Ungültig'
+  const canAnalyze = heroOk && villainOk && !invalidBoard && !loading
 
   return (
     <div className="card p-5 md:p-6 flex flex-col gap-6">
@@ -317,22 +428,32 @@ export function RoundSimulator(): JSX.Element {
       <div className="flex flex-wrap gap-4 items-end">
         <div className="flex flex-col gap-1">
           <label className="text-xs text-muted">Spieler</label>
-          <select className={selectCls} value={players} onChange={e => handlePlayersChange(Number(e.target.value))}>
+          <select className={selectCls} value={players}
+            onChange={e => {
+              const n = Number(e.target.value)
+              setPlayers(n)
+              setStacks(prev => Array.from({ length: n }, (_, i) => prev[i] ?? 1000))
+            }}>
             {[2,3,4,5,6,7,8,9].map(n => <option key={n} value={n}>{n}</option>)}
           </select>
         </div>
         <div className="flex flex-col gap-1">
           <label className="text-xs text-muted">Big Blind</label>
-          <input type="number" min={1} className={`${selectCls} w-24`} value={bbSize} onChange={e => setBbSize(parseInt(e.target.value, 10) || 100)} />
+          <input type="number" min={1} className={`${selectCls} w-24`} value={bbSize}
+            onChange={e => setBbSize(parseInt(e.target.value, 10) || 100)} />
         </div>
         <div className="flex flex-col gap-1">
           <label className="text-xs text-muted">Ante</label>
-          <input type="number" min={0} className={`${selectCls} w-24`} value={ante} onChange={e => setAnte(parseInt(e.target.value, 10) || 0)} />
+          <input type="number" min={0} className={`${selectCls} w-24`} value={ante}
+            onChange={e => setAnte(parseInt(e.target.value, 10) || 0)} />
         </div>
         <div className="flex flex-col gap-1">
           <label className="text-xs text-muted">Bezahlte Plätze</label>
-          <select className={selectCls} value={paidPlaces} onChange={e => setPaidPlaces(Number(e.target.value))}>
-            {Array.from({ length: players - 1 }, (_, i) => i + 1).map(n => <option key={n} value={n}>{n}</option>)}
+          <select className={selectCls} value={paidPlaces}
+            onChange={e => setPaidPlaces(Number(e.target.value))}>
+            {Array.from({ length: players - 1 }, (_, i) => i + 1).map(n => (
+              <option key={n} value={n}>{n}</option>
+            ))}
           </select>
         </div>
         {Array.from({ length: paidPlaces }, (_, i) => (
@@ -352,7 +473,8 @@ export function RoundSimulator(): JSX.Element {
           {Array.from({ length: players }, (_, i) => (
             <div key={i} className="flex flex-col gap-1">
               <label className="text-xs text-muted">{i === 0 ? 'Hero' : `Sp. ${i + 1}`}</label>
-              <input type="number" min={1} className={`${inputCls} ${i === 0 ? 'ring-1 ring-accent/50' : ''}`}
+              <input type="number" min={1}
+                className={`${inputCls} ${i === 0 ? 'ring-1 ring-accent/50' : ''}`}
                 value={stacks[i] ?? 1000}
                 onChange={e => { const u = [...stacks]; u[i] = parseInt(e.target.value, 10) || 0; setStacks(u) }} />
             </div>
@@ -361,63 +483,134 @@ export function RoundSimulator(): JSX.Element {
       </div>
 
       {/* ── Karten-Eingabe ──────────────────────────────────────────────────── */}
-      <div className="flex flex-col gap-3">
-        <p className="text-sm font-medium text-muted">
-          Karten eingeben
-          <span className="ml-2 text-xs font-normal text-muted/60">— Slot anklicken, dann Karte im Picker wählen</span>
-        </p>
+      <div className="flex flex-col gap-4">
+        <div className="flex items-center justify-between">
+          <p className="text-sm font-medium text-muted">
+            Karten — Slot anklicken, dann Karte im Picker wählen
+          </p>
+          <button
+            className="text-xs text-slate-500 hover:text-slate-300 transition-colors border border-white/10 rounded-lg px-2.5 py-1 hover:border-white/20"
+            onClick={clearAll}
+          >
+            Alle zurücksetzen
+          </button>
+        </div>
 
-        {/* Slots */}
-        <div className="flex flex-wrap gap-4 items-start">
+        {/* Slot-Gruppen */}
+        <div className="flex flex-wrap gap-6 items-start">
+
           {/* Hero */}
-          <div className="flex flex-col gap-1">
-            <p className="text-xs text-muted">Hero-Hand</p>
-            <div className="flex gap-1">
-              {(['h0', 'h1'] as SlotKey[]).map(slot => (
-                <CardSlot key={slot} card={slot === 'h0' ? heroCards[0] : heroCards[1]}
-                  label={SLOT_LABELS[slot]} active={activeSlot === slot}
-                  onClick={() => setActiveSlot(slot)} />
+          <div className="flex flex-col gap-2">
+            <p className="text-xs text-muted font-medium">Hero-Hand</p>
+            <div className="flex gap-1.5">
+              {(['h0', 'h1'] as SlotKey[]).map((slot, i) => (
+                <CardSlot key={slot}
+                  card={heroCards[i]}
+                  label={SLOT_LABELS[slot]}
+                  active={activeSlot === slot}
+                  onClick={() => setActiveSlot(slot)}
+                  clearable onClear={() => clearCard(slot)}
+                />
               ))}
             </div>
           </div>
 
           {/* Board */}
-          <div className="flex flex-col gap-1">
-            <p className="text-xs text-muted">Board <span className="text-muted/60">({boardStage})</span></p>
-            <div className="flex gap-1">
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center gap-2">
+              <p className="text-xs text-muted font-medium">Board</p>
+              <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${
+                invalidBoard
+                  ? 'bg-red-900/40 text-red-400'
+                  : stage !== 'Preflop'
+                    ? 'bg-white/8 text-slate-400'
+                    : 'text-slate-600'
+              }`}>
+                {stage === 'Ungültig' ? '⚠ Unvollständig' : stage}
+              </span>
+            </div>
+            <div className="flex gap-1.5">
               {(['b0', 'b1', 'b2', 'b3', 'b4'] as SlotKey[]).map((slot, i) => (
-                <CardSlot key={slot} card={boardCards[i]}
-                  label={SLOT_LABELS[slot]} active={activeSlot === slot}
-                  onClick={() => setActiveSlot(slot)} />
+                <CardSlot key={slot}
+                  card={boardCards[i]}
+                  label={SLOT_LABELS[slot]}
+                  active={activeSlot === slot}
+                  onClick={() => setActiveSlot(slot)}
+                  clearable onClear={() => clearCard(slot)}
+                />
               ))}
             </div>
+            {invalidBoard && (
+              <p className="text-xs text-red-400/70">
+                Board muss 0, 3, 4 oder 5 Karten haben (Preflop / Flop / Turn / River).
+              </p>
+            )}
           </div>
 
           {/* Villain */}
-          <div className="flex flex-col gap-1">
-            <p className="text-xs text-muted">Villain-Hand</p>
-            <div className="flex gap-1">
-              {(['v0', 'v1'] as SlotKey[]).map(slot => (
-                <CardSlot key={slot} card={slot === 'v0' ? villainCards[0] : villainCards[1]}
-                  label={SLOT_LABELS[slot]} active={activeSlot === slot}
-                  onClick={() => setActiveSlot(slot)} />
-              ))}
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center gap-2">
+              <p className="text-xs text-muted font-medium">Villain</p>
+              {/* Modus-Toggle */}
+              <div className="flex rounded-lg border border-white/10 overflow-hidden">
+                <button
+                  className={`text-[10px] px-2 py-0.5 transition-colors ${villainMode === 'cards' ? 'bg-accent/20 text-accent' : 'text-slate-500 hover:text-slate-300'}`}
+                  onClick={() => setVillainMode('cards')}
+                >
+                  Karten
+                </button>
+                <button
+                  className={`text-[10px] px-2 py-0.5 transition-colors ${villainMode === 'range' ? 'bg-accent/20 text-accent' : 'text-slate-500 hover:text-slate-300'}`}
+                  onClick={() => setVillainMode('range')}
+                >
+                  Range
+                </button>
+              </div>
             </div>
-            {!villainOk && (
-              <p className="text-xs text-muted/50 mt-0.5">Erforderlich für Analyse</p>
+
+            {villainMode === 'cards' ? (
+              <div className="flex flex-col gap-1">
+                <div className="flex gap-1.5">
+                  {(['v0', 'v1'] as SlotKey[]).map((slot, i) => (
+                    <CardSlot key={slot}
+                      card={villainCards[i]}
+                      label={SLOT_LABELS[slot]}
+                      active={activeSlot === slot}
+                      onClick={() => setActiveSlot(slot)}
+                      clearable onClear={() => clearCard(slot)}
+                    />
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <div className="flex flex-col gap-2 min-w-[180px]">
+                <div className="flex items-center gap-3">
+                  <input
+                    type="range" min={5} max={100} step={5}
+                    value={rangeWidthPct}
+                    onChange={e => setRangeWidthPct(Number(e.target.value))}
+                    className="flex-1 accent-accent cursor-pointer"
+                  />
+                  <span className="text-sm tabnum text-text w-10 text-right font-semibold">{rangeWidthPct} %</span>
+                </div>
+                <p className="text-[10px] text-slate-500">
+                  Stärkste {rangeWidthPct} % aller Hände · ca. {Math.round(1326 * rangeWidthPct / 100)} Kombos
+                </p>
+              </div>
             )}
           </div>
         </div>
 
         {/* Card Picker */}
-        {activeSlot !== null && (
+        {activeSlot !== null && (villainMode === 'cards' || slotGroup(activeSlot) !== 'villain') && (
           <div className="rounded-lg border border-white/10 p-3 bg-black/20">
             <p className="text-xs text-muted mb-2">
-              Wähle Karte für: <span className="text-text font-medium">{SLOT_LABELS[activeSlot]}</span>
+              Karte für <span className="text-text font-medium">{SLOT_LABELS[activeSlot]}</span>
+              {' '}— Klick auf belegte Karte ersetzt sie
             </p>
             <CardPicker
-              selected={activeSlot ? selectedFor(activeSlot) : []}
-              blocked={activeSlot ? blockedFor(activeSlot) : []}
+              selected={selectedFor(activeSlot)}
+              blocked={blockedFor(activeSlot)}
               onToggle={handleToggle}
               maxSelect={slotGroup(activeSlot) === 'board' ? 5 : 2}
             />
@@ -425,107 +618,158 @@ export function RoundSimulator(): JSX.Element {
         )}
       </div>
 
-      {/* ── Analysieren ─────────────────────────────────────────────────────── */}
-      <button
-        className="btn-primary self-start disabled:opacity-50"
-        onClick={handleAnalyze}
-        disabled={!heroOk || !villainOk || loading}
-      >
-        {loading ? 'Berechne…' : 'Analysieren'}
-      </button>
-      {!heroOk    && <p className="text-xs text-loss -mt-4">Hero-Hand unvollständig</p>}
-      {heroOk && !villainOk && <p className="text-xs text-muted -mt-4">Villain-Hand eingeben für Equity-Berechnung</p>}
+      {/* ── Analysieren ──────────────────────────────────────────────────────── */}
+      <div className="flex items-center gap-3">
+        <button
+          className="btn-primary disabled:opacity-40 disabled:cursor-not-allowed"
+          onClick={handleAnalyze}
+          disabled={!canAnalyze}
+        >
+          {loading
+            ? <span className="flex items-center gap-2">
+                <span className="h-3 w-3 rounded-full border-2 border-current border-t-transparent animate-spin" />
+                Berechne…
+              </span>
+            : 'Analysieren'}
+        </button>
+        {!heroOk && <p className="text-xs text-loss">Hero-Hand unvollständig</p>}
+        {heroOk && !villainOk && <p className="text-xs text-muted">Villain-Hand oder Range eingeben</p>}
+        {invalidBoard && <p className="text-xs text-loss">Board unvollständig (1 oder 2 Karten)</p>}
+      </div>
 
-      {/* ── Ergebnis ────────────────────────────────────────────────────────── */}
+      {/* ── Ergebnis ──────────────────────────────────────────────────────────── */}
       {result && (
         <div className="flex flex-col gap-5 border-t border-white/10 pt-5">
 
-          {/* Karten-Zusammenfassung + Hand-Namen */}
+          {/* Karten-Header */}
           <div className="flex flex-wrap gap-6">
             <div className="flex flex-col gap-1">
-              <p className="text-xs text-muted">Hero-Hand</p>
-              <div className="flex gap-1">
+              <p className="text-[10px] text-muted uppercase tracking-wider">Hero</p>
+              <div className="flex gap-1.5">
                 {[heroCards[0], heroCards[1]].filter((c): c is Card => c !== null).map(c => (
-                  <span key={c} className={`font-mono font-bold text-sm ${cardColorClass(c)}`}>{cardLabel(c)}</span>
+                  <span key={c} className={`font-mono font-bold text-base ${cardColorClass(c)}`}>{cardLabel(c)}</span>
                 ))}
               </div>
               {result.heroHandName !== '—' && (
                 <p className="text-xs text-accent font-medium">{result.heroHandName}</p>
               )}
             </div>
-            {board.length > 0 && (
+
+            {result.board.length > 0 && (
               <div className="flex flex-col gap-1">
-                <p className="text-xs text-muted">Board ({boardStage})</p>
-                <div className="flex gap-1">
-                  {board.map(c => (
-                    <span key={c} className={`font-mono font-bold text-sm ${cardColorClass(c)}`}>{cardLabel(c)}</span>
+                <p className="text-[10px] text-muted uppercase tracking-wider">Board ({result.stage})</p>
+                <div className="flex gap-1.5">
+                  {result.board.map(c => (
+                    <span key={c} className={`font-mono font-bold text-base ${cardColorClass(c)}`}>{cardLabel(c)}</span>
                   ))}
                 </div>
               </div>
             )}
+
             <div className="flex flex-col gap-1">
-              <p className="text-xs text-muted">Villain-Hand</p>
-              <div className="flex gap-1">
-                {[villainCards[0], villainCards[1]].filter((c): c is Card => c !== null).map(c => (
-                  <span key={c} className={`font-mono font-bold text-sm ${cardColorClass(c)}`}>{cardLabel(c)}</span>
-                ))}
-              </div>
-              {result.villainHandName !== '—' && (
-                <p className="text-xs text-muted font-medium">{result.villainHandName}</p>
+              <p className="text-[10px] text-muted uppercase tracking-wider">
+                Villain {villainMode === 'range' ? `(Top ${rangeWidthPct} % Range)` : ''}
+              </p>
+              {villainMode === 'cards' ? (
+                <>
+                  <div className="flex gap-1.5">
+                    {[villainCards[0], villainCards[1]].filter((c): c is Card => c !== null).map(c => (
+                      <span key={c} className={`font-mono font-bold text-base ${cardColorClass(c)}`}>{cardLabel(c)}</span>
+                    ))}
+                  </div>
+                  {result.villainHandName && (
+                    <p className="text-xs text-muted font-medium">{result.villainHandName}</p>
+                  )}
+                </>
+              ) : (
+                <p className="text-xs text-muted font-medium">
+                  ~{Math.round(result.pCall * 1326)} Kombos
+                </p>
               )}
             </div>
           </div>
 
           {/* Equity-Balken */}
           <div className="rounded-lg border border-white/10 p-4 flex flex-col gap-3">
-            <div className="flex items-center gap-2">
-              <p className="text-xs font-medium text-muted flex-1">
-                Equity
-                {result.equity.isExact
-                  ? ` — exakt (${result.equity.sampleCount.toLocaleString('de-DE')} Boards)`
-                  : ` — Monte Carlo (${result.equity.sampleCount.toLocaleString('de-DE')} Iterationen, SE < 0.4 %)`}
-              </p>
-            </div>
+            <p className="text-xs font-medium text-muted">
+              {result.exactEquity?.isExact
+                ? `Equity (exakt · ${result.exactEquity.sampleCount.toLocaleString('de-DE')} Boards)`
+                : result.rangeEquity
+                  ? `Equity vs Range (MC · ${result.rangeEquity.iterations.toLocaleString('de-DE')} Iter. · SE < ${(Math.sqrt(result.rangeEquity.hero*(1-result.rangeEquity.hero)/result.rangeEquity.iterations)*196*100).toFixed(1)} %)`
+                  : 'Equity'}
+            </p>
 
-            <div className="flex flex-wrap gap-6 items-center">
-              <div className="flex flex-col">
-                <span className="text-xs text-muted">Hero gewinnt</span>
-                <span className="text-2xl font-bold tabnum text-profit">{(result.equity.win * 100).toFixed(1)} %</span>
-              </div>
-              {result.equity.tie > 0.001 && (
-                <div className="flex flex-col">
-                  <span className="text-xs text-muted">Unentschieden</span>
-                  <span className="text-xl font-bold tabnum text-muted">{(result.equity.tie * 100).toFixed(1)} %</span>
+            {result.exactEquity ? (
+              <>
+                <div className="flex flex-wrap gap-6 items-center">
+                  <div className="flex flex-col">
+                    <span className="text-[10px] text-muted">Hero gewinnt</span>
+                    <span className="text-3xl font-bold tabnum text-profit">
+                      {(result.exactEquity.win * 100).toFixed(1)} %
+                    </span>
+                  </div>
+                  {result.exactEquity.tie > 0.001 && (
+                    <div className="flex flex-col">
+                      <span className="text-[10px] text-muted">Unentschieden</span>
+                      <span className="text-xl font-bold tabnum text-muted">
+                        {(result.exactEquity.tie * 100).toFixed(1)} %
+                      </span>
+                    </div>
+                  )}
+                  <div className="flex flex-col">
+                    <span className="text-[10px] text-muted">Villain gewinnt</span>
+                    <span className="text-3xl font-bold tabnum text-loss">
+                      {(result.exactEquity.lose * 100).toFixed(1)} %
+                    </span>
+                  </div>
                 </div>
-              )}
-              <div className="flex flex-col">
-                <span className="text-xs text-muted">Villain gewinnt</span>
-                <span className="text-2xl font-bold tabnum text-loss">{(result.equity.lose * 100).toFixed(1)} %</span>
-              </div>
-            </div>
-
-            {/* Equity-Balken */}
-            <div className="flex h-3 rounded-full overflow-hidden">
-              <div className="bg-profit transition-all" style={{ width: `${result.equity.win * 100}%` }} />
-              {result.equity.tie > 0.001 && (
-                <div className="bg-yellow-700 transition-all" style={{ width: `${result.equity.tie * 100}%` }} />
-              )}
-              <div className="bg-loss flex-1" />
-            </div>
-            <div className="flex justify-between text-xs text-muted tabnum">
-              <span>Hero {(result.equity.win * 100).toFixed(1)} %</span>
-              <span>Villain {(result.equity.lose * 100).toFixed(1)} %</span>
-            </div>
+                <div className="flex h-3 rounded-full overflow-hidden bg-loss/30">
+                  <div className="bg-profit transition-all" style={{ width: `${result.exactEquity.win * 100}%` }} />
+                  {result.exactEquity.tie > 0.001 && (
+                    <div className="bg-yellow-600 transition-all" style={{ width: `${result.exactEquity.tie * 100}%` }} />
+                  )}
+                </div>
+                <div className="flex justify-between text-xs text-muted tabnum">
+                  <span>Hero {(result.exactEquity.win * 100).toFixed(1)} %</span>
+                  {result.exactEquity.tie > 0.001 && (
+                    <span>Split {(result.exactEquity.tie * 100).toFixed(1)} %</span>
+                  )}
+                  <span>Villain {(result.exactEquity.lose * 100).toFixed(1)} %</span>
+                </div>
+              </>
+            ) : result.rangeEquity ? (
+              <>
+                <div className="flex flex-wrap gap-6 items-center">
+                  <div className="flex flex-col">
+                    <span className="text-[10px] text-muted">Hero vs Range</span>
+                    <span className="text-3xl font-bold tabnum text-profit">
+                      {(result.rangeEquity.hero * 100).toFixed(1)} %
+                    </span>
+                  </div>
+                  <span className="text-xs text-muted">
+                    ±{(result.rangeEquity.stdDev * 196 * 100).toFixed(1)} % (95%-KI)
+                  </span>
+                </div>
+                <div className="flex h-3 rounded-full overflow-hidden bg-loss/30">
+                  <div className="bg-profit transition-all" style={{ width: `${result.rangeEquity.hero * 100}%` }} />
+                </div>
+                <div className="flex justify-between text-xs text-muted tabnum">
+                  <span>Hero {(result.rangeEquity.hero * 100).toFixed(1)} %</span>
+                  <span>Range {((1 - result.rangeEquity.hero) * 100).toFixed(1)} %</span>
+                </div>
+              </>
+            ) : null}
           </div>
 
-          {/* Outs (nur Turn/River mit bekanntem Board) */}
-          {result.equity.outs.length > 0 && (
+          {/* Outs (nur Turn/River, nur bei spezifischen Karten) */}
+          {result.exactEquity && result.exactEquity.outs.length > 0 && (
             <div className="rounded-lg border border-white/10 p-4">
               <p className="text-xs font-medium text-muted mb-2">
-                Outs für Hero: <span className="text-text tabnum">{result.equity.outs.length}</span> Karte{result.equity.outs.length !== 1 ? 'n' : ''}
+                Outs für Hero: <span className="text-text tabnum">{result.exactEquity.outs.length}</span> Karte{result.exactEquity.outs.length !== 1 ? 'n' : ''}
+                <span className="ml-2 text-muted/50">({(result.exactEquity.outs.length * 2.13).toFixed(1)} % pro Karte, Approx.)</span>
               </p>
               <div className="flex flex-wrap gap-1">
-                {result.equity.outs.map(c => (
+                {result.exactEquity.outs.map(c => (
                   <span key={c} className={`font-mono text-xs px-1.5 py-0.5 rounded bg-slate-800 ${cardColorClass(c)}`}>
                     {cardLabel(c)}
                   </span>
@@ -534,12 +778,14 @@ export function RoundSimulator(): JSX.Element {
             </div>
           )}
 
-          {/* ICM-Szenarien */}
+          {/* ICM-Szenarien (nur Preflop) */}
           <IcmTable result={result} />
 
-          <p className="text-xs text-muted">
-            Equity: {result.equity.isExact ? 'Vollständige Enumeration aller möglichen Boards — mathematisch exakt.' : 'Monte Carlo-Schätzung — mathematisch bestimmte Wahrscheinlichkeiten, kein historischer Datensatz.'}
-          </p>
+          {result.stage !== 'Preflop' && (
+            <p className="text-xs text-muted/50">
+              ICM-Szenarien werden nur Preflop angezeigt (Push/Fold-Modell).
+            </p>
+          )}
         </div>
       )}
     </div>
