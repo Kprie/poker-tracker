@@ -1,5 +1,5 @@
 globalThis.localStorage = { getItem: () => null, setItem: () => {} }
-const { evShoveMultiway, comboToHandId } = await import('../src/renderer/src/lib/multiwayEv.ts')
+const { evShoveMultiway, multiwaySeatEv, comboToHandId } = await import('../src/renderer/src/lib/multiwayEv.ts')
 const { computeIcmScenarios } = await import('../src/renderer/src/lib/equity.ts')
 const { computeIcmEquities } = await import('../src/renderer/src/lib/icm.ts')
 const { makeCard } = await import('../src/renderer/src/lib/cards.ts')
@@ -53,6 +53,32 @@ const AKs = [makeCard(12, 3), makeCard(11, 3)]
   ok('3-way: EV im Payout-Bereich [20,50]', ev >= 20 && ev <= 50, `ev=${ev.toFixed(2)}`)
   // AA shove als Chipleader-Gleichstand sollte besser als reines Fold-Equity (~33.3) sein
   ok('3-way: AA-Shove EV > 33 (besser als neutral)', ev > 33, `ev=${ev.toFixed(2)}`)
+}
+
+// ── commit-Modus (Gegner-Call-EV-Pfad): Ziel-Sitz callt, Hero ist committed ──
+{
+  const stacks = [1000, 1000], payouts = [70, 30], posts = [50, 100]
+  const callAll = new Map(ALL_HAND_IDS.map(id => [id, 1]))
+  // Sitz 1 (Ziel, AA) gegen Hero (Sitz 0), der mit allen Händen committed ist.
+  // Symmetrisch zum Hero-AA-Fall → ≈ 64.
+  const evSeat1 = multiwaySeatEv({
+    stacks, payouts, posts, targetIdx: 1, targetCards: AA,
+    seats: [{ mode: 'commit', range: callAll }, null], iterations: 8000,
+  })
+  ok('commit: Sitz1 AA vs Hero(commit alle) ≈ 64 (±3)', Math.abs(evSeat1 - 64) <= 3, `ev=${evSeat1.toFixed(2)}`)
+
+  // Range-Konditionierung: KK gegen enge Hero-Range (nur AA) << KK gegen weite Range.
+  const onlyAA = new Map([['AA', 1]])
+  const evKKvsAA = multiwaySeatEv({
+    stacks, payouts, posts, targetIdx: 1, targetCards: KK,
+    seats: [{ mode: 'commit', range: onlyAA }, null], iterations: 8000,
+  })
+  const evKKvsAll = multiwaySeatEv({
+    stacks, payouts, posts, targetIdx: 1, targetCards: KK,
+    seats: [{ mode: 'commit', range: callAll }, null], iterations: 8000,
+  })
+  console.log(`  KK vs nur-AA = ${evKKvsAA.toFixed(2)}  |  KK vs alle = ${evKKvsAll.toFixed(2)}`)
+  ok('commit: KK-EV gegen enge (AA) << gegen weite Range', evKKvsAA < evKKvsAll - 3, `${evKKvsAA.toFixed(2)} vs ${evKKvsAll.toFixed(2)}`)
 }
 
 console.log(failures === 0 ? '\nALL PASS' : `\n${failures} FAILURE(S)`)
