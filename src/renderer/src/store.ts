@@ -28,7 +28,8 @@ const mockApi: PokerApi = {
     updated: 0,
     skipped: 0,
     errors: ['Nur in der Desktop-App verfügbar.']
-  })
+  }),
+  exportData: async () => ({ ok: false, error: 'Nur in der Desktop-App verfügbar.' })
 }
 
 const api: PokerApi = typeof window !== 'undefined' && window.api ? window.api : mockApi
@@ -49,6 +50,7 @@ interface State {
   chooseFolder: () => Promise<void>
   chooseDataFolder: () => Promise<void>
   clear: (source?: Tournament['source']) => Promise<void>
+  exportData: () => Promise<void>
   setToast: (t: State['toast']) => void
 }
 
@@ -137,5 +139,15 @@ export const useStore = create<State>((set, get) => ({
     const tournaments = await api.clearData(source)
     set({ tournaments })
     get().setToast({ kind: 'ok', msg: 'Daten gelöscht' })
+  },
+
+  exportData: async () => {
+    try {
+      const res = await api.exportData()
+      if (res.ok) get().setToast({ kind: 'ok', msg: `Anonymisiert exportiert: ${res.path ?? ''}` })
+      else if (res.error) get().setToast({ kind: 'err', msg: res.error })
+    } catch (e) {
+      get().setToast({ kind: 'err', msg: (e as Error).message })
+    }
   }
 }))

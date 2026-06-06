@@ -46,6 +46,13 @@ export function IcmTab(): JSX.Element {
 
   return (
     <div className="flex flex-col gap-8">
+      {/* ── Dauerhafter Modell-/TOS-Hinweis ────────────────────────────────── */}
+      <div className="rounded-lg border border-white/8 bg-white/[0.02] px-4 py-2.5 text-[11px] text-muted">
+        Alle Auswertungen sind <span className="text-text">modellabhängig</span> und gelten nur für
+        abgeschlossene oder hypothetische Turnierspots unter den angegebenen Annahmen. Keine
+        Echtzeit-Entscheidungshilfe für laufende Hände.
+      </div>
+
       {/* ── ICM-Equity-Rechner ─────────────────────────────────────────────── */}
       <Section title="ICM-Equity-Rechner">
         <div className="flex flex-col gap-4">

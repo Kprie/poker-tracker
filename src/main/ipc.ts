@@ -1,6 +1,8 @@
 import { dialog, ipcMain } from 'electron'
 import AdmZip from 'adm-zip'
-import { existsSync, readdirSync, readFileSync, statSync } from 'fs'
+import { existsSync, readdirSync, readFileSync, statSync, writeFileSync } from 'fs'
+import { anonymizeForExport } from './exportUtil'
+import { loadData } from './store'
 import { extname, join } from 'path'
 import type { AppSettings, ImportResult, PokerStarsScanResult, Tournament } from '../shared/types'
 import { parseGGPokerSummaries } from './parsers/ggpoker'
@@ -62,6 +64,22 @@ export function registerIpc(): void {
   ipcMain.handle('data:clear', (_e, source?: Tournament['source']) => {
     clearTournaments(source)
     return getTournaments()
+  })
+
+  // Exportiert die eigenen Daten anonymisiert (ohne Spielernamen) als JSON-Datei.
+  ipcMain.handle('data:export', async () => {
+    const res = await dialog.showSaveDialog({
+      title: 'Anonymisierten Export speichern',
+      defaultPath: `poker-export-${new Date().toISOString().slice(0, 10)}.json`,
+      filters: [{ name: 'JSON', extensions: ['json'] }]
+    })
+    if (res.canceled || !res.filePath) return { ok: false as const }
+    try {
+      writeFileSync(res.filePath, JSON.stringify(anonymizeForExport(loadData()), null, 2), 'utf-8')
+      return { ok: true as const, path: res.filePath }
+    } catch (e) {
+      return { ok: false as const, error: (e as Error).message }
+    }
   })
 
   // Let the user pick the PokerStars TournSummary folder.

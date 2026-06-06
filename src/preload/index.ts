@@ -18,7 +18,9 @@ const api = {
     ipcRenderer.invoke('pokerstars:choose-folder'),
   chooseDataFolder: (): Promise<AppSettings> => ipcRenderer.invoke('data:choose-dir'),
   scanPokerStars: (): Promise<PokerStarsScanResult> => ipcRenderer.invoke('pokerstars:scan'),
-  importGGPoker: (): Promise<ImportResult> => ipcRenderer.invoke('ggpoker:import')
+  importGGPoker: (): Promise<ImportResult> => ipcRenderer.invoke('ggpoker:import'),
+  exportData: (): Promise<{ ok: boolean; path?: string; error?: string }> =>
+    ipcRenderer.invoke('data:export')
 }
 
 export type PokerApi = typeof api

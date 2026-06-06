@@ -31,6 +31,7 @@ export function Toolbar(): JSX.Element {
   const importGGPoker = useStore((s) => s.importGGPoker)
   const chooseFolder = useStore((s) => s.chooseFolder)
   const chooseDataFolder = useStore((s) => s.chooseDataFolder)
+  const exportData = useStore((s) => s.exportData)
   const [openSettings, setOpenSettings] = useState(false)
 
   const applyPreset = (days: number | 'all'): void => {
@@ -140,6 +141,18 @@ export function Toolbar(): JSX.Element {
                 value={settings.dataDir ?? 'Standard'}
                 onChange={chooseDataFolder}
               />
+            </div>
+            <div className="mt-3 flex items-center justify-between gap-3 px-1">
+              <span className="text-[11px] text-muted">
+                Daten lokal verschlüsselt gespeichert (OS-Schlüsselbund). Export ohne Spielernamen.
+              </span>
+              <button
+                onClick={exportData}
+                className="inline-flex items-center gap-1 rounded-lg border border-white/15 px-3 py-1.5 text-xs text-text/90 transition-colors hover:border-white/30"
+              >
+                Anonymisiert exportieren
+                <ArrowUpRight width={13} height={13} />
+              </button>
             </div>
             {(busy || lastScan) && (
               <div className="mt-2 flex items-center gap-2 px-1 text-[11px] text-muted">

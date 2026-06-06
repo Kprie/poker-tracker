@@ -9,6 +9,7 @@ export interface PokerApi {
   chooseDataFolder: () => Promise<AppSettings>
   scanPokerStars: () => Promise<PokerStarsScanResult>
   importGGPoker: () => Promise<ImportResult>
+  exportData: () => Promise<{ ok: boolean; path?: string; error?: string }>
 }
 
 declare global {

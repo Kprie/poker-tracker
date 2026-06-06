@@ -1,4 +1,4 @@
-import { app } from 'electron'
+import { app, safeStorage } from 'electron'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs'
 import { homedir } from 'os'
 import { join } from 'path'
@@ -111,12 +111,38 @@ function migrateSpeed(t: Tournament): TournamentSpeed {
   return 'unknown'
 }
 
+/**
+ * Serialisiert AppData, verschlüsselt ruhend via OS-Schlüsselbund (safeStorage,
+ * Windows DPAPI), wenn verfügbar. Fällt auf Klartext zurück, wenn nicht. Format
+ * bei Verschlüsselung: `{"__enc":1,"v":"<base64>"}`.
+ */
+function serializeData(data: AppData): string {
+  const json = JSON.stringify(data, null, 2)
+  try {
+    if (safeStorage.isEncryptionAvailable()) {
+      return JSON.stringify({ __enc: 1, v: safeStorage.encryptString(json).toString('base64') })
+    }
+  } catch {
+    /* Verschlüsselung nicht verfügbar — Klartext-Fallback. */
+  }
+  return json
+}
+
+/** Liest AppData; entschlüsselt verschlüsselte Dateien, akzeptiert Alt-Klartext. */
+function deserializeData(raw: string): AppData {
+  const obj = JSON.parse(raw)
+  if (obj && obj.__enc === 1 && typeof obj.v === 'string') {
+    return JSON.parse(safeStorage.decryptString(Buffer.from(obj.v, 'base64'))) as AppData
+  }
+  return obj as AppData
+}
+
 export function loadData(): AppData {
   if (cache) return cache
   const file = dataFilePath()
   if (existsSync(file)) {
     try {
-      const parsed = JSON.parse(readFileSync(file, 'utf-8')) as AppData
+      const parsed = deserializeData(readFileSync(file, 'utf-8'))
       // Migration: records saved before `resultKnown` existed were all summary
       // imports (payout/finish known), so default missing values to true.
       // Migration: pre-0.4.3 parser defaulted to 'regular' when speed was
@@ -146,7 +172,7 @@ export function loadData(): AppData {
 
 export function saveData(data: AppData): void {
   cache = data
-  writeFileSync(dataFilePath(), JSON.stringify(data, null, 2), 'utf-8')
+  writeFileSync(dataFilePath(), serializeData(data), 'utf-8')
 }
 
 export function getSettings(): AppSettings {

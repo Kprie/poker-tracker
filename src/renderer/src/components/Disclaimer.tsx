@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 
-const KEY = 'pt.disclaimerAccepted.v3'
+const KEY = 'pt.disclaimerAccepted.v4'
 
 interface Point {
   icon: string
@@ -26,6 +26,16 @@ const POINTS: Point[] = [
       <>
         Reine <span className="text-text">Nachbereitung nach der Session</span> – kein
         Echtzeit-HUD, kein Overlay, keine Spielhilfe während des Spiels.
+      </>
+    )
+  },
+  {
+    icon: '✓',
+    tone: 'text-profit',
+    text: (
+      <>
+        Alle analysierten Hände sind <span className="text-text">abgeschlossen oder
+        hypothetisch</span> – das Tool wird nicht zur Entscheidung in einer laufenden Hand genutzt.
       </>
     )
   },
@@ -61,13 +71,14 @@ export function Disclaimer(): JSX.Element | null {
   const [open, setOpen] = useState(false)
 
   useEffect(() => {
-    if (localStorage.getItem(KEY) !== 'true') setOpen(true)
+    if (!localStorage.getItem(KEY)) setOpen(true)
   }, [])
 
   if (!open) return null
 
   const accept = (): void => {
-    localStorage.setItem(KEY, 'true')
+    // Bestätigung lokal mit Zeitstempel speichern (TOS: dokumentierte Zustimmung).
+    localStorage.setItem(KEY, JSON.stringify({ accepted: true, ts: new Date().toISOString() }))
     setOpen(false)
   }
 
