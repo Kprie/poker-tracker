@@ -4,7 +4,9 @@ import { handIdToCombos } from '../lib/cards'
 import { buildCallingRange, computeEquityMC, computeIcmScenarios } from '../lib/equity'
 import type { EquityResult, IcmScenarios } from '../lib/equity'
 import { solveNash, computeIcmDeltas } from '../lib/nashSolver'
-import type { NashResult } from '../lib/nashSolver'
+import type { NashResult, NashHandResult } from '../lib/nashSolver'
+import { solveMultiwaySpotAsync } from '../lib/multiwaySolverClient'
+import type { MultiwaySolveResult } from '../lib/multiwaySolver'
 import {
   cachedPairCount,
   precomputeAllEquities,
@@ -46,6 +48,35 @@ const RESULT_TABS: { key: ResultTab; label: string }[] = [
 
 const inputCls = 'bg-slate-900 border border-white/10 rounded-lg px-3 py-1.5 text-sm text-white tabnum focus:outline-none focus:ring-1 focus:ring-accent/60 transition-colors hover:border-white/20'
 const selectCls = inputCls + ' cursor-pointer'
+
+/**
+ * Standard-Blind-/Ante-Struktur: die beiden letzten Sitze posten SB/BB, alle posten Ante.
+ * Bei HU postet Sitz 0 (Hero) den SB. Werte in Chips. Vom Nutzer pro Sitz überschreibbar.
+ */
+function defaultPosts(players: number, bbSize: number, ante: number): number[] {
+  const posts = Array.from({ length: players }, () => ante)
+  const sbSeat = players - 2
+  const bbSeat = players - 1
+  if (sbSeat >= 0) posts[sbSeat] += Math.round(bbSize * 0.5)
+  if (bbSeat >= 0) posts[bbSeat] += bbSize
+  return posts
+}
+
+/** Adaptiert ein MultiwaySolveResult auf die NashResult-Form für Grid/Tabelle. */
+function adaptMultiway(res: MultiwaySolveResult): NashResult {
+  const toNash = (m: Map<HandId, { ev: number; freq: number }>): Map<HandId, NashHandResult> => {
+    const out = new Map<HandId, NashHandResult>()
+    for (const [id, r] of m) out.set(id, { handId: id, ev: r.ev, freq: r.freq, equity: 0 })
+    return out
+  }
+  const firstCall = [...res.callRanges.values()][0]
+  return {
+    pushRange: toNash(res.pushRange),
+    callRange: firstCall ? toNash(firstCall) : new Map(),
+    converged: res.converged,
+    iterations: res.iterations,
+  }
+}
 
 // ─── Precompute-Banner ────────────────────────────────────────────────────────
 
@@ -98,6 +129,8 @@ export function SpotAnalyzer(): JSX.Element {
   const [paidPlaces,   setPaidPlaces]   = useState(2)
   const [stacks,       setStacks]       = useState<number[]>([2000, 2000])
   const [payoutInputs, setPayoutInputs] = useState<string[]>(['65', '35'])
+  // Posts (Blind+Ante) je Sitz; null = automatische Standard-Struktur.
+  const [postsOverride, setPostsOverride] = useState<number[] | null>(null)
 
   // Hand
   const [heroHand, setHeroHand] = useState<HandId | null>(null)
@@ -121,6 +154,8 @@ export function SpotAnalyzer(): JSX.Element {
   const [precompRunning, setPrecompRunning] = useState(false)
 
   const positions = availablePositions(players)
+  // Effektive Posts: Nutzer-Override oder Standard-Struktur.
+  const posts = postsOverride ?? defaultPosts(players, bbSize, ante)
 
   // ── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -130,6 +165,7 @@ export function SpotAnalyzer(): JSX.Element {
     setStacks(newStacks)
     const pos = availablePositions(n)
     if (!pos.includes(position)) setPosition(pos[0])
+    setPostsOverride(null)  // Standard-Posts für neue Spielerzahl
   }
 
   function handleStackBbChange(val: number): void {
@@ -158,12 +194,22 @@ export function SpotAnalyzer(): JSX.Element {
     const heroChips  = Math.round(stackBb * bbSize)
     const fullStacks = [heroChips, ...stacks.slice(1, players)]
     const payouts    = payoutInputs.slice(0, paidPlaces).map(p => parseFloat(p) || 0)
-    setTimeout(() => {
-      const r = solveNash({ stacks: fullStacks, payouts, bbSize, ante })
-      setNashReady(r)
-      setNashLoading(false)
-    }, 0)
-  }, [stackBb, bbSize, stacks, players, payoutInputs, paidPlaces, ante])
+
+    if (players === 2) {
+      // HU: schneller Pfad im Main Thread (warmer Equity-Cache).
+      setTimeout(() => {
+        const r = solveNash({ stacks: fullStacks, payouts, bbSize, ante })
+        setNashReady(r)
+        setNashLoading(false)
+      }, 0)
+    } else {
+      // Multiway: rechenintensiv → im Web Worker (UI bleibt flüssig).
+      const active = Array.from({ length: players }, (_, i) => i)
+      solveMultiwaySpotAsync(active, { stacks: fullStacks, payouts, posts, evIterations: 800, maxIterations: 8, damping: 0.5 })
+        .then(res => { setNashReady(adaptMultiway(res)); setNashLoading(false) })
+        .catch(err => { console.error('Multiway-Solver-Fehler:', err); setNashLoading(false) })
+    }
+  }, [stackBb, bbSize, stacks, players, payoutInputs, paidPlaces, ante, posts])
 
   function handleAnalyze(): void {
     if (!heroHand) return
@@ -283,13 +329,13 @@ export function SpotAnalyzer(): JSX.Element {
         <div className="flex flex-col gap-1">
           <label className="text-[10px] font-medium uppercase tracking-wider text-slate-500">BB-Größe</label>
           <input type="number" min={1} className={`${inputCls} w-20`} value={bbSize}
-            onChange={e => setBbSize(parseInt(e.target.value, 10) || 100)} />
+            onChange={e => { setBbSize(parseInt(e.target.value, 10) || 100); setPostsOverride(null) }} />
         </div>
 
         <div className="flex flex-col gap-1">
           <label className="text-[10px] font-medium uppercase tracking-wider text-slate-500">Ante</label>
           <input type="number" min={0} className={`${inputCls} w-20`} value={ante}
-            onChange={e => setAnte(parseInt(e.target.value, 10) || 0)} />
+            onChange={e => { setAnte(parseInt(e.target.value, 10) || 0); setPostsOverride(null) }} />
         </div>
       </div>
 
@@ -329,6 +375,36 @@ export function SpotAnalyzer(): JSX.Element {
                 </div>
               ))}
             </div>
+          </div>
+
+          {/* Posts (Blind + Ante) je Sitz — multiway-relevant */}
+          <div className="rounded-xl border border-white/8 bg-slate-900/50 p-3">
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-[10px] font-medium uppercase tracking-wider text-slate-500">
+                Posts (Blind + Ante) — Chips je Sitz
+              </p>
+              {postsOverride && (
+                <button className="text-[10px] text-accent hover:underline" onClick={() => setPostsOverride(null)}>
+                  Standard
+                </button>
+              )}
+            </div>
+            <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
+              {Array.from({ length: players }, (_, i) => (
+                <div key={i} className="flex flex-col gap-1">
+                  <label className="text-[10px] text-slate-500">
+                    {i === 0 ? <span className="text-accent font-semibold">Hero</span> : `Sp. ${i + 1}`}
+                  </label>
+                  <input type="number" min={0}
+                    className={`${inputCls} w-full`}
+                    value={posts[i] ?? 0}
+                    onChange={e => { const u = [...posts]; u[i] = parseInt(e.target.value, 10) || 0; setPostsOverride(u) }} />
+                </div>
+              ))}
+            </div>
+            <p className="text-[10px] text-slate-600 mt-1.5">
+              Standard: die letzten zwei Sitze posten SB/BB, alle posten Ante. Stacks gelten vor dem Posten.
+            </p>
           </div>
 
           {/* Auszahlungen + Aktions-Buttons */}
