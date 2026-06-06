@@ -7,6 +7,7 @@ import { solveNash, computeIcmDeltas } from '../lib/nashSolver'
 import type { NashResult, NashHandResult } from '../lib/nashSolver'
 import { solveMultiwaySpotAsync } from '../lib/multiwaySolverClient'
 import type { MultiwaySolveResult } from '../lib/multiwaySolver'
+import { seatLayoutForPosition } from '../lib/positions'
 import {
   cachedPairCount,
   precomputeAllEquities,
@@ -48,19 +49,6 @@ const RESULT_TABS: { key: ResultTab; label: string }[] = [
 
 const inputCls = 'bg-slate-900 border border-white/10 rounded-lg px-3 py-1.5 text-sm text-white tabnum focus:outline-none focus:ring-1 focus:ring-accent/60 transition-colors hover:border-white/20'
 const selectCls = inputCls + ' cursor-pointer'
-
-/**
- * Standard-Blind-/Ante-Struktur: die beiden letzten Sitze posten SB/BB, alle posten Ante.
- * Bei HU postet Sitz 0 (Hero) den SB. Werte in Chips. Vom Nutzer pro Sitz überschreibbar.
- */
-function defaultPosts(players: number, bbSize: number, ante: number): number[] {
-  const posts = Array.from({ length: players }, () => ante)
-  const sbSeat = players - 2
-  const bbSeat = players - 1
-  if (sbSeat >= 0) posts[sbSeat] += Math.round(bbSize * 0.5)
-  if (bbSeat >= 0) posts[bbSeat] += bbSize
-  return posts
-}
 
 /** Adaptiert ein MultiwaySolveResult auf die NashResult-Form für Grid/Tabelle. */
 function adaptMultiway(res: MultiwaySolveResult): NashResult {
@@ -154,8 +142,10 @@ export function SpotAnalyzer(): JSX.Element {
   const [precompRunning, setPrecompRunning] = useState(false)
 
   const positions = availablePositions(players)
-  // Effektive Posts: Nutzer-Override oder Standard-Struktur.
-  const posts = postsOverride ?? defaultPosts(players, bbSize, ante)
+  // Positions-Layout: aktive Sitze (Hero + Responder hinter Hero) und Posts.
+  const layout = seatLayoutForPosition(position, players, bbSize, ante)
+  // Effektive Posts: Nutzer-Override oder positionsabhängige Standard-Struktur.
+  const posts = postsOverride ?? layout.posts
 
   // ── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -204,12 +194,12 @@ export function SpotAnalyzer(): JSX.Element {
       }, 0)
     } else {
       // Multiway: rechenintensiv → im Web Worker (UI bleibt flüssig).
-      const active = Array.from({ length: players }, (_, i) => i)
-      solveMultiwaySpotAsync(active, { stacks: fullStacks, payouts, posts, evIterations: 800, maxIterations: 8, damping: 0.5 })
+      // Aktive Sitze = Hero + Responder hinter Heros Position (positionsabhängig).
+      solveMultiwaySpotAsync(layout.active, { stacks: fullStacks, payouts, posts, evIterations: 800, maxIterations: 8, damping: 0.5 })
         .then(res => { setNashReady(adaptMultiway(res)); setNashLoading(false) })
         .catch(err => { console.error('Multiway-Solver-Fehler:', err); setNashLoading(false) })
     }
-  }, [stackBb, bbSize, stacks, players, payoutInputs, paidPlaces, ante, posts])
+  }, [stackBb, bbSize, stacks, players, payoutInputs, paidPlaces, ante, posts, position])
 
   async function handleAnalyze(): Promise<void> {
     if (!heroHand) return
@@ -229,8 +219,7 @@ export function SpotAnalyzer(): JSX.Element {
       if (players === 2) {
         nashResult = solveNash({ stacks: fullStacks, payouts, bbSize, ante, posts, callerIdx })
       } else {
-        const active = Array.from({ length: players }, (_, i) => i)
-        const res = await solveMultiwaySpotAsync(active, { stacks: fullStacks, payouts, posts, evIterations: 800, maxIterations: 8, damping: 0.5 })
+        const res = await solveMultiwaySpotAsync(layout.active, { stacks: fullStacks, payouts, posts, evIterations: 800, maxIterations: 8, damping: 0.5 })
         nashResult = adaptMultiway(res)
       }
     } catch (err) {
@@ -322,7 +311,7 @@ export function SpotAnalyzer(): JSX.Element {
         <div className="flex flex-col gap-1">
           <label className="text-[10px] font-medium uppercase tracking-wider text-slate-500">Position</label>
           <select className={selectCls} value={position}
-            onChange={e => setPosition(e.target.value as Position)}>
+            onChange={e => { setPosition(e.target.value as Position); setPostsOverride(null) }}>
             {positions.map(p => <option key={p} value={p}>{p}</option>)}
           </select>
         </div>
@@ -416,7 +405,9 @@ export function SpotAnalyzer(): JSX.Element {
               ))}
             </div>
             <p className="text-[10px] text-slate-600 mt-1.5">
-              Standard: die letzten zwei Sitze posten SB/BB, alle posten Ante. Stacks gelten vor dem Posten.
+              {players > 2
+                ? `Position ${position}: ${layout.nBehind} Spieler hinter Hero handeln noch; frühere Sitze gelten als gefoldet (Posts = Dead Money). SB/BB auf den letzten aktiven Sitzen.`
+                : 'Heads-Up: Sitz 0 (Hero/SB) jammt gegen BB. Stacks gelten vor dem Posten.'}
             </p>
           </div>
 

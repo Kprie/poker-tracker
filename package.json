@@ -1,6 +1,6 @@
 {
   "name": "proker",
-  "version": "0.7.0",
+  "version": "0.8.0",
   "description": "Proker — Poker-Turnier-Tracker und ICM-Analyse-Tool",
   "main": "./out/main/index.js",
   "author": "",
@@ -19,7 +19,8 @@
     "verify:multiwayev": "node scripts/run-verify.mjs scripts/verify-multiwayev.mjs",
     "verify:multiwaysolver": "node scripts/run-verify.mjs scripts/verify-multiwaysolver.mjs",
     "verify:consistency": "node scripts/run-verify.mjs scripts/verify-consistency.mjs",
-    "verify": "npm run verify:icm && npm run verify:b6 && npm run verify:sidepots && npm run verify:multiway && npm run verify:multiwayev && npm run verify:multiwaysolver && npm run verify:consistency"
+    "verify:positions": "node scripts/run-verify.mjs scripts/verify-positions.mjs",
+    "verify": "npm run verify:icm && npm run verify:b6 && npm run verify:sidepots && npm run verify:multiway && npm run verify:multiwayev && npm run verify:multiwaysolver && npm run verify:consistency && npm run verify:positions"
   },
   "dependencies": {
     "@fontsource-variable/geist": "^5.2.9",
