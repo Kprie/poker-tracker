@@ -11,6 +11,7 @@ import { ItmDepth } from './components/ItmDepth'
 import { TournamentTable } from './components/TournamentTable'
 import { Upload } from './components/icons'
 import { IcmTab } from './components/IcmTab'
+import { MethodikPanel } from './components/MethodikPanel'
 import { useStore } from './store'
 import { money, pct } from './lib/format'
 import {
@@ -71,7 +72,7 @@ function Toast(): JSX.Element | null {
 export default function App(): JSX.Element {
   const { loading, tournaments, filters } = useStore()
   const init = useStore((s) => s.init)
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'icm'>('dashboard')
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'icm' | 'methodik'>('dashboard')
 
   useEffect(() => {
     init()
@@ -96,7 +97,7 @@ export default function App(): JSX.Element {
   const profitTone = kpis.profit > 0 ? 'profit' : kpis.profit < 0 ? 'loss' : 'neutral'
   const roiTone = kpis.roi > 0 ? 'profit' : kpis.roi < 0 ? 'loss' : 'neutral'
 
-  const tabClass = (tab: 'dashboard' | 'icm'): string =>
+  const tabClass = (tab: 'dashboard' | 'icm' | 'methodik'): string =>
     activeTab === tab
       ? 'border-b-2 border-accent pb-2.5 pt-3 px-4 text-sm font-semibold text-text'
       : 'border-b-2 border-transparent pb-2.5 pt-3 px-4 text-sm font-medium text-muted hover:text-text transition-colors'
@@ -113,9 +114,16 @@ export default function App(): JSX.Element {
           <button className={tabClass('icm')} onClick={() => setActiveTab('icm')}>
             ICM-Analyse
           </button>
+          <button className={tabClass('methodik')} onClick={() => setActiveTab('methodik')}>
+            Methodik
+          </button>
         </div>
       </div>
-      {activeTab === 'icm' ? (
+      {activeTab === 'methodik' ? (
+        <main className="mx-auto w-full max-w-[1400px] px-6 pb-20 pt-6">
+          <MethodikPanel />
+        </main>
+      ) : activeTab === 'icm' ? (
         <main className="mx-auto w-full max-w-[1400px] px-6 pb-20 pt-6">
           <IcmTab />
         </main>
