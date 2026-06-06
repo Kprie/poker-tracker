@@ -42,6 +42,13 @@ export function PlayStyle({ s }: Props): JSX.Element | null {
     { label: 'Aggression (AF)', value: s.af.toFixed(2), sub: '(Bet+Raise)/Call' },
   ]
 
+  const bb100Tile = {
+    label: 'BB/100',
+    value: s.bbHands ? `${s.bb100 >= 0 ? '+' : ''}${s.bb100.toFixed(1)}` : '—',
+    sub: s.bbHands ? `n=${s.bbHands}${s.bbHands < 1000 ? ' · wenig Daten' : ''}` : 'kein BB-Level',
+    tone: (s.bb100 >= 0 ? 'profit' : 'loss') as 'profit' | 'loss',
+  }
+
   const postflop = [
     rateTile('C-Bet Flop', s.cbet, s.cbetOpp, 50),
     rateTile('Fold vs C-Bet', s.foldToCbet, s.foldToCbetOpp, 50),
@@ -80,9 +87,29 @@ export function PlayStyle({ s }: Props): JSX.Element | null {
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
         {preflop.map((c) => <KpiTile key={c.label} label={c.label} value={c.value} sub={c.sub} />)}
       </div>
-      <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+      <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+        <KpiTile label={bb100Tile.label} value={bb100Tile.value} sub={bb100Tile.sub} tone={bb100Tile.tone} />
         {postflop.map((c) => <KpiTile key={c.label} label={c.label} value={c.value} sub={c.sub} />)}
       </div>
+
+      {s.positions.length > 0 && (
+        <div className="mt-4">
+          <p className="mb-2 text-[10px] uppercase tracking-eyebrow text-muted">Winrate je Position (BB/100)</p>
+          <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 lg:grid-cols-7">
+            {s.positions.map((p) => (
+              <div key={p.pos} className="card px-3 py-2">
+                <div className="text-[10px] text-muted">{p.pos} <span className="text-slate-600">· n={p.hands}</span></div>
+                <div className={`tabnum text-sm font-semibold ${p.bb100 >= 0 ? 'text-profit' : 'text-loss'}`}>
+                  {p.bb100 >= 0 ? '+' : ''}{p.bb100.toFixed(1)}
+                </div>
+              </div>
+            ))}
+          </div>
+          <p className="mt-2 text-[10px] text-slate-600">
+            BB/100 = Netto-Big-Blinds pro 100 Hände. EV-adjustiertes BB/100 ist geplant.
+          </p>
+        </div>
+      )}
     </Section>
   )
 }

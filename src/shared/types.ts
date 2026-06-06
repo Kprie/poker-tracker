@@ -99,6 +99,16 @@ export interface HandStatsAgg {
   checkRaiseFlopOpp: number
   /** Hände, in denen Hero am Flop check-raiste. */
   checkRaiseFlop: number
+
+  // ── Chip-Bilanz (BB/100, Positions-Winrates) ──
+  /** Summe des Netto-Ergebnisses in Big Blinds über alle gewerteten Hände. */
+  bbWon: number
+  /** Anzahl Hände mit gültigem BB-Level und Netto-Ergebnis (Nenner für BB/100). */
+  bbHands: number
+  /** Anzahl gewerteter Hände je Position (BTN/SB/BB/CO/HJ/MP/EP). */
+  posHands: Record<string, number>
+  /** Summe Netto-BB je Position. */
+  posBbWon: Record<string, number>
 }
 
 export interface ImportResult {

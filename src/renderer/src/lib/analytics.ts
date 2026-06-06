@@ -88,6 +88,12 @@ export interface PlayStyle {
   checkRaiseOpp: number
   /** Postflop-Aktionen gesamt (Aggression-Sample). */
   postflopActions: number
+  /** Netto-Winrate in BB pro 100 Hände. */
+  bb100: number
+  /** Hände mit gültiger Chip-Bilanz (Nenner für bb100). */
+  bbHands: number
+  /** Winrate je Position (BB/100), geordnet EP→BB. */
+  positions: { pos: string; hands: number; bb100: number }[]
   /** Tournaments that contributed hand stats. */
   tournaments: number
 }
@@ -115,6 +121,21 @@ export function computePlayStyle(rows: Tournament[]): PlayStyle {
   const foldToCbetOpp = sum(stats, (s) => s.foldToCbetOpp)
   const checkRaise = sum(stats, (s) => s.checkRaiseFlop)
   const checkRaiseOpp = sum(stats, (s) => s.checkRaiseFlopOpp)
+  // Chip-Bilanz + Positions-Winrates (defensiv ggü. älteren Datensätzen ohne diese Felder).
+  const bbWon = sum(stats, (s) => s.bbWon ?? 0)
+  const bbHands = sum(stats, (s) => s.bbHands ?? 0)
+  const posH: Record<string, number> = {}
+  const posB: Record<string, number> = {}
+  for (const s of stats) {
+    for (const [p, c] of Object.entries(s.posHands ?? {})) posH[p] = (posH[p] ?? 0) + c
+    for (const [p, v] of Object.entries(s.posBbWon ?? {})) posB[p] = (posB[p] ?? 0) + v
+  }
+  const POS_ORDER = ['EP', 'MP', 'HJ', 'CO', 'BTN', 'SB', 'BB']
+  const positions = POS_ORDER.filter((p) => posH[p]).map((p) => ({
+    pos: p,
+    hands: posH[p],
+    bb100: posH[p] ? (posB[p] / posH[p]) * 100 : 0,
+  }))
   return {
     hands,
     vpip: hands ? vpip / hands : 0,
@@ -136,6 +157,9 @@ export function computePlayStyle(rows: Tournament[]): PlayStyle {
     checkRaise: checkRaiseOpp ? checkRaise / checkRaiseOpp : 0,
     checkRaiseOpp,
     postflopActions: agg + calls,
+    bb100: bbHands ? (bbWon / bbHands) * 100 : 0,
+    bbHands,
+    positions,
     tournaments: stats.length
   }
 }

@@ -38,6 +38,10 @@ export interface HandResult {
   foldToCbet: number
   checkRaiseFlopOpp: number
   checkRaiseFlop: number
+  /** Netto-Ergebnis in Big Blinds (null = BB-Level unbekannt). */
+  netBb: number | null
+  /** Hero-Position (BTN/SB/BB/CO/HJ/MP/EP) oder null. */
+  position: string | null
 }
 
 export function isPokerStarsHandHistory(content: string): boolean {
@@ -84,6 +88,109 @@ function findMarker(block: string, ...markers: string[]): number {
     if (i >= 0) return i
   }
   return -1
+}
+
+// ─── Chip-Bilanz & Position ─────────────────────────────────────────────────
+
+/** Letzte Ganzzahl einer Zeile (Tausender-Kommas entfernt). 0 wenn keine. */
+function lastInt(line: string): number {
+  const xs = [...line.matchAll(/\d[\d,]*/g)].map((m) => parseInt(m[0].replace(/,/g, ''), 10))
+  return xs.length ? xs[xs.length - 1] : 0
+}
+
+/**
+ * Hero-Beitrag (Chips) einer Street-Region. Raise „to Y" überschreibt den
+ * Street-Betrag (Y ist der Gesamtbetrag dieser Street inkl. Blind); Antes werden
+ * separat addiert (nicht Teil des „to Y"). Call/Bet/Blind addieren.
+ */
+function streetContribution(region: string, isHero: (l: string) => boolean): number {
+  let contrib = 0
+  let ante = 0
+  for (const line of region.split('\n')) {
+    if (!isHero(line)) continue
+    const verb = classifyVerb(line)
+    if (!verb) continue
+    if (verb === 'post') {
+      if (/\bante\b/i.test(line)) ante += lastInt(line)
+      else contrib += lastInt(line)
+    } else if (verb === 'raise') {
+      contrib = lastInt(line)
+    } else if (verb === 'call' || verb === 'bet') {
+      contrib += lastInt(line)
+    }
+  }
+  return contrib + ante
+}
+
+/** Netto-Chip-Ergebnis des Heros = collected + uncalled − investiert. */
+function computeNetChips(
+  block: string,
+  hero: string,
+  isHero: (l: string) => boolean,
+  bounds: { iFlop: number; iTurn: number; iRiver: number; iShow: number; iSummary: number },
+): number {
+  const end = firstPositive(bounds.iFlop, bounds.iShow, bounds.iSummary)
+  const preEnd = end >= 0 ? end : block.length
+  let invested = streetContribution(block.slice(0, preEnd), isHero)  // Posts + Preflop
+  invested += streetContribution(section(block, bounds.iFlop, [bounds.iTurn, bounds.iShow, bounds.iSummary]), isHero)
+  invested += streetContribution(section(block, bounds.iTurn, [bounds.iRiver, bounds.iShow, bounds.iSummary]), isHero)
+  invested += streetContribution(section(block, bounds.iRiver, [bounds.iShow, bounds.iSummary]), isHero)
+
+  const summary = bounds.iSummary >= 0 ? block.slice(bounds.iSummary) : ''
+  let collected = 0
+  const colRe = new RegExp(`${esc(hero)}[^\\n]*?(?:collected|won|gewinnt|gewann)\\D*(\\d[\\d,]*)`, 'g')
+  for (const m of summary.matchAll(colRe)) collected += parseInt(m[1].replace(/,/g, ''), 10)
+
+  let uncalled = 0
+  const unEn = new RegExp(`Uncalled bet \\((\\d[\\d,]*)\\) returned to ${esc(hero)}`, 'g')
+  const unDe = new RegExp(`Nicht eingel[öo]ster Einsatz \\((\\d[\\d,]*)\\)[^\\n]*${esc(hero)}`, 'g')
+  for (const m of block.matchAll(unEn)) uncalled += parseInt(m[1].replace(/,/g, ''), 10)
+  for (const m of block.matchAll(unDe)) uncalled += parseInt(m[1].replace(/,/g, ''), 10)
+
+  return collected + uncalled - invested
+}
+
+/** Big-Blind-Größe aus der Level-Angabe „(sb/bb)" im Header. 0 wenn unbekannt. */
+function parseBbSize(headerLine: string): number {
+  const m = headerLine.match(/\((\d[\d,]*)\/(\d[\d,]*)\)/)
+  return m ? parseInt(m[2].replace(/,/g, ''), 10) : 0
+}
+
+const POS_LABELS = ['BTN', 'SB', 'BB', 'CO', 'HJ', 'MP', 'EP'] as const
+
+/** Positionslabel aus Offset zum Button (0=BTN) und Spielerzahl. */
+function positionLabel(offset: number, n: number): string {
+  if (offset === 0) return 'BTN'
+  if (offset === 1) return 'SB'
+  if (offset === 2) return 'BB'
+  const fromButton = n - offset  // 1 = CO (direkt vor dem Button)
+  if (fromButton === 1) return 'CO'
+  if (fromButton === 2) return 'HJ'
+  if (fromButton === 3) return 'MP'
+  return 'EP'
+}
+
+/** Hero-Position aus Button-Sitz und der Sitzliste (vor HOLE CARDS). */
+function computePosition(block: string, hero: string, iHole: number): string | null {
+  const head = iHole >= 0 ? block.slice(0, iHole) : block
+  const btnM = head.match(/Seat #(\d+) (?:is the button|ist der Button)/)
+  if (!btnM) return null
+  const button = parseInt(btnM[1], 10)
+  const seats: number[] = []
+  let heroSeat = -1
+  for (const m of head.matchAll(/^Seat (\d+): (.+?) \(/gm)) {
+    const seat = parseInt(m[1], 10)
+    seats.push(seat)
+    if (m[2].trim() === hero) heroSeat = seat
+  }
+  if (heroSeat < 0 || seats.length < 2) return null
+  seats.sort((a, b) => a - b)
+  const n = seats.length
+  const bi = seats.indexOf(button)
+  const hi = seats.indexOf(heroSeat)
+  if (bi < 0 || hi < 0) return null
+  const offset = (hi - bi + n) % n
+  return positionLabel(offset, n)
 }
 
 function parseHand(block: string): HandResult | null {
@@ -199,6 +306,14 @@ function parseHand(block: string): HandResult | null {
     if (heroChecked && betSeen && firstAggressorIsHero === false) checkRaiseFlopOpp = 1
   }
 
+  // --- Chip-Bilanz & Position ---
+  const headerEnd = block.indexOf('\n')
+  const headerLine = block.slice(0, headerEnd >= 0 ? headerEnd : block.length)
+  const bbSize = parseBbSize(headerLine)
+  const netChips = computeNetChips(block, hero, isHero, { iFlop, iTurn, iRiver, iShow, iSummary })
+  const netBb = bbSize > 0 ? netChips / bbSize : null
+  const position = computePosition(block, hero, iHole)
+
   // --- Postflop aggression ---
   let aggActions = 0
   let callActions = 0
@@ -256,7 +371,9 @@ function parseHand(block: string): HandResult | null {
     foldToCbetOpp,
     foldToCbet,
     checkRaiseFlopOpp,
-    checkRaiseFlop
+    checkRaiseFlop,
+    netBb,
+    position
   }
 }
 
@@ -341,7 +458,16 @@ export function aggregateHands(allHands: HandResult[]): Tournament[] {
       foldToCbetOpp: sum(list, (h) => h.foldToCbetOpp),
       foldToCbet: sum(list, (h) => h.foldToCbet),
       checkRaiseFlopOpp: sum(list, (h) => h.checkRaiseFlopOpp),
-      checkRaiseFlop: sum(list, (h) => h.checkRaiseFlop)
+      checkRaiseFlop: sum(list, (h) => h.checkRaiseFlop),
+      bbWon: sum(list, (h) => h.netBb ?? 0),
+      bbHands: list.filter((h) => h.netBb !== null).length,
+      posHands: {},
+      posBbWon: {}
+    }
+    for (const h of list) {
+      if (h.position === null || h.netBb === null) continue
+      agg.posHands[h.position] = (agg.posHands[h.position] ?? 0) + 1
+      agg.posBbWon[h.position] = (agg.posBbWon[h.position] ?? 0) + h.netBb
     }
     const startDate = list.map((h) => h.startDate).sort()[0]
     const finishPlace = list.map((h) => h.finishPlace).find((p) => p != null) ?? null
