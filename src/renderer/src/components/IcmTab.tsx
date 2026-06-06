@@ -4,18 +4,23 @@ import { Section } from './Section'
 import { IcmCalculator } from './IcmCalculator'
 import type { IcmResult } from './IcmCalculator'
 import { BubbleFactorMatrix } from './BubbleFactorMatrix'
+import { RiskPremiumMatrix } from './RiskPremiumMatrix'
+import { DealPanel } from './DealPanel'
 import { LadderChart } from './LadderChart'
 import { IcmCompareChart } from './IcmCompareChart'
 import { PushFoldPanel } from './PushFoldPanel'
 import { SpotAnalyzer } from './SpotAnalyzer'
 import { RoundSimulator } from './RoundSimulator'
 import { PotOddsCalculator } from './PotOddsCalculator'
+import { PkoBountyPanel } from './PkoBountyPanel'
 
 // Sub-Tab-Leiste innerhalb der ICM-Ergebnis-Sektion
 const RESULT_TABS = [
   { key: 'matrix',  label: 'Bubble-Factor-Matrix' },
+  { key: 'risk',    label: 'Risk Premium' },
   { key: 'ladder',  label: 'Ladder-Analyse' },
   { key: 'compare', label: 'Chip EV vs ICM' },
+  { key: 'deal',    label: 'Deal & Satellite' },
 ] as const
 type ResultTab = typeof RESULT_TABS[number]['key']
 
@@ -58,11 +63,17 @@ export function IcmTab(): JSX.Element {
               {resultTab === 'matrix' && (
                 <BubbleFactorMatrix bubbleFactors={bf} playerCount={result.stacks.length} />
               )}
+              {resultTab === 'risk' && (
+                <RiskPremiumMatrix bubbleFactors={bf} playerCount={result.stacks.length} />
+              )}
               {resultTab === 'ladder' && (
                 <LadderChart positionEquities={posEq} payouts={result.payouts} playerCount={result.stacks.length} />
               )}
               {resultTab === 'compare' && (
                 <IcmCompareChart equities={result.equities} stacks={result.stacks} payouts={result.payouts} />
+              )}
+              {resultTab === 'deal' && (
+                <DealPanel stacks={result.stacks} payouts={result.payouts} />
               )}
             </div>
           )}
@@ -82,6 +93,11 @@ export function IcmTab(): JSX.Element {
       {/* ── Pot-Odds & EV ─────────────────────────────────────────────────── */}
       <Section title="Pot-Odds & EV-Rechner">
         <PotOddsCalculator />
+      </Section>
+
+      {/* ── PKO-Bounty ────────────────────────────────────────────────────── */}
+      <Section title="PKO-Bounty-Rechner">
+        <PkoBountyPanel />
       </Section>
 
       {/* ── Push/Fold-Referenz ────────────────────────────────────────────── */}

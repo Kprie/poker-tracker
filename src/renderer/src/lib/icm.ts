@@ -116,6 +116,26 @@ export function computeBubbleFactors(stacks: number[], payouts: number[]): numbe
 }
 
 /**
+ * Benötigte Roh-Equity, um ein (symmetrisches) All-in unter ICM ICM-$-neutral zu
+ * callen, abgeleitet aus dem Bubble Factor BF (= $-Verlust / $-Gewinn):
+ *
+ *   benötigte Equity = BF / (1 + BF)
+ *
+ * Annahme: doppelt-oder-bust mit gleich großem Gewinn/Verlust. Für stark ungleiche
+ * Stacks ist dies eine Näherung; exakte Schwellen liefert das Szenario-Modell.
+ */
+export function requiredCallEquity(bubbleFactor: number): number {
+  if (!isFinite(bubbleFactor)) return 1
+  if (bubbleFactor <= 0) return 0
+  return bubbleFactor / (1 + bubbleFactor)
+}
+
+/** Risk Premium = benötigte Equity über dem Chip-EV-Breakeven (50 %). */
+export function riskPremium(bubbleFactor: number): number {
+  return requiredCallEquity(bubbleFactor) - 0.5
+}
+
+/**
  * Wandelt rohe ICM-Equities in den gewünschten Anzeigemodus um.
  */
 export function convertEquities(
