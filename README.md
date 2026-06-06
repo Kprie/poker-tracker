@@ -1,8 +1,8 @@
 # Proker
 
-**Poker-Turnier-Tracker und ICM-Analyse-Tool** für Windows.
+**Turnierpoker-Tracker und Analyse-Suite** für Windows.
 
-Importiert Turnierergebnisse von **PokerStars** und **GGPoker**, wertet die eigene Spielhistorie aus und bietet einen vollständigen **ICM-Analyse-Tab** mit Nash-Solver, Runden-Simulator und Push/Fold-Referenz.
+Importiert Turnierergebnisse von **PokerStars** und **GGPoker**, wertet die eigene Spielhistorie aus und bietet eine vollständige **Turnier-Analyse-Suite**: ICM, Nash-Push/Fold (HU + Multiway, chip-erhaltend), Pot-Odds/Bet-EV, PKO-Bounty, Deal/Satellite, Equity-Labor und ein erweitertes Spielstil-Tracking. Vollständig **offline**, Daten lokal verschlüsselt.
 
 ---
 
@@ -13,47 +13,46 @@ Importiert Turnierergebnisse von **PokerStars** und **GGPoker**, wertet die eige
 - **PokerStars einlesen** — liest alle `*.txt` Tournament-Summaries und Hand-Histories rekursiv aus dem konfigurierten Ordner
 - **PokerCraft hochladen** — importiert GGPoker PokerCraft-Exporte (`.zip` oder einzelne `.txt`)
 - **Kennzahlen**: Netto-Profit, ROI, Buy-ins gesamt, ITM-Quote, größter Cash, Ø Buy-in
-- **Spielstil** (aus PokerStars Hand-Histories): VPIP, PFR, 3-Bet, Aggression Factor, WTSD, W$SD
+- **Spielstil** (aus PokerStars Hand-Histories):
+  - Preflop: VPIP, PFR, 3-Bet, **4-Bet, Fold vs 3-Bet**, Aggression Factor
+  - Postflop: **C-Bet Flop, Fold vs C-Bet, Check-Raise Flop**, WTSD, W$SD
+  - **BB/100** und **Winrate je Position** (BTN/SB/BB/CO/HJ/MP/EP)
+  - **Sample-Size-Warnungen** bei zu kleiner Stichprobe
 - **Bankroll-Verlauf** als Flächendiagramm mit gleitendem ROI-Fenster (20/50/100 Turniere)
-- **ITM-Tiefe**: Auszahlungsverteilung über 4 Tiers (kein Cash / <2× / 2–5× / ≥5× Buy-in)
-- **Spieltendenzen**: ROI nach Buy-in-Stufe, Speed, Wochentag und Startuhrzeit
-- **Turnier-Tabelle** — sortier- und filterbar nach allen Spalten
-- **Filter** nach Quelle (PokerStars / GGPoker / beide) und Zeitraum (Presets oder frei)
+- **ITM-Tiefe**, **Spieltendenzen** (ROI nach Buy-in/Speed/Wochentag/Uhrzeit), sortierbare **Turnier-Tabelle**
+- **Filter** nach Quelle und Zeitraum
+- **Anonymisierter Export** der eigenen Daten (ohne Spielernamen)
 
 ### ICM-Analyse-Tab
 
 #### ICM-Equity-Rechner
-- **Malmuth-Harville-Algorithmus** — berechnet exakte ICM-Equities für bis zu 9 Spieler
-- **8 Auszahlungs-Presets**: Heads-Up, SNG 6/9-Handed, Final Table 6/9, PKO, Satellit
-- **Anzeigemodi**: ICM % / ICM € / Chip EV / Chip BB
-- **Antes-Unterstützung** mit effektivem Stack
-- **Bubble-Factor-Matrix** — zeigt für jedes Spielerpaar, wie viel stärker ein Chip-Verlust wiegt als ein Chip-Gewinn
-- **Ladder-Analyse** — gestapeltes Balkendiagramm: Equity-Beitrag je Auszahlungsplatz pro Spieler
-- **Chip EV vs. ICM** — Vergleichsdiagramm mit Differenzlabels
+- **Malmuth-Harville-Algorithmus** — exakte ICM-Equities für bis zu 9 Spieler
+- 8 Auszahlungs-Presets · Anzeigemodi ICM % / € / Chip EV / Chip BB · Antes
+- Ergebnis-Reiter: **Bubble-Factor-Matrix**, **Risk Premium** (benötigte Call-Equity je Gegner), **Ladder-Analyse**, **Chip EV vs. ICM**, **Deal & Satellite** (Chip-Chop vs. ICM-Chop + Ticket-Lock)
 
-#### Runden-Simulation *(neu in 0.5.0)*
-- **Konkrete Karten-Eingabe**: Hero-Hand, Board (0–5 Karten), Villain-Hand über 52-Karten-Picker
-- **Exakte Wahrscheinlichkeiten** — vollständige Board-Enumeration:
-  - River: direkte Auswertung (1 Board, exakt)
-  - Turn: Enumeration aller 44 möglichen River-Karten
-  - Flop: Enumeration aller C(45,2) = 990 Turn+River-Kombinationen
-  - Preflop: Monte Carlo 20.000 Iterationen (SE < 0,4 %)
-- **Hand-Erkennung**: automatische Anzeige der aktuellen Handkategorie (Paar Asse, Flush, etc.)
-- **Outs-Anzeige**: konkrete Karten, die Hero gewinnen lassen (Turn/River)
-- **ICM-Szenarien**: Fold / Push alle folden / Push gecallt+gewonnen / Push gecallt+verloren
-- Alle Wahrscheinlichkeiten sind **mathematisch berechnet** — kein historischer Datensatz
+#### Hand-Analyse
+- Hero-Hand, Board (0–5 Karten), Villain-Hand/Range über 52-Karten-Picker
+- **Exakte Equity** (River direkt · Turn/Flop vollständige Enumeration · Preflop Monte Carlo) + **Outs** + Handkategorie + ICM-Szenarien
+
+#### Equity-Labor (Multiway)
+- 2–4 Hände + Board → **Multiway-Equity** je Hand, **Handklassen-Verteilung** über alle Runouts, **Draw-Erkennung** (Flush-/Nut-Flush-Draw, OESD, Gutshot)
 
 #### Spot-Analyse (Nash Push/Fold)
-- **Iterativer Nash-Solver** via Alternating Best Response (ABR)
-- ICM-adjustierte EVs nach Malmuth-Harville für jede Hand
-- **13×13 Hand-Grid** mit Nash-Farben (grün = pushen, gelb = grenzwertig, grau = folden)
-- Zeigt: Equity vs. Call-Range, ICM-EV aller Szenarien, Konvergenz-Info
-- Equity-Tabelle: 200 Monte-Carlo-Iterationen je Combo-Paar, gecacht in localStorage
+- **Heads-Up: chip-erhaltend exakt** · **Multiway: exakt mit Side-Pots** (Web Worker, UI bleibt flüssig)
+- **Position real modelliert** (Anzahl Responder hinter Hero) · explizite Post-Eingabe je Sitz
+- 13×13 Hand-Grid mit ICM-adjustierten Nash-Farben, Equity vs. Call-Range, Konvergenz-Info
+
+#### Pot-Odds & EV-Rechner
+- Benötigte Equity, Call-EV, **Break-even-Foldfrequenz**, Bet-EV, **Sizing-Vergleich** · optionaler Risk-Premium-Aufschlag
+
+#### PKO-Bounty-Rechner
+- Sofortiger **Bounty-EV** einer All-in-Konfrontation (Coverage-bedingt) + Gesamt-EV
 
 #### Push/Fold-Referenz
-- Vorgefertigte Spots: HU SB/BB, 3-handed, 4–6-handed (BTN/CO/HJ/UTG)
-- Stack-Regler 2–25 BB, Positions-Auswahl
-- Spots speichern und laden (localStorage)
+- Vorgefertigte Spots (HU, 3–6-handed), Stack-Regler, speicherbar
+
+### Methodik-Tab
+- Module & Status (Soll/Ist), verwendete **Formeln**, bekannte Grenzen, Fair-Play/TOS — siehe auch [`docs/turnier-analyse-methodik.md`](docs/turnier-analyse-methodik.md)
 
 ---
 
@@ -64,7 +63,7 @@ Importiert Turnierergebnisse von **PokerStars** und **GGPoker**, wertet die eige
 **Variante A – fertige Datei (empfohlen):**
 
 1. Auf die [**Releases-Seite**](https://github.com/Kprie/poker-tracker/releases) gehen.
-2. Unter dem neuesten Release eine Datei herunterladen:
+2. Unter dem neuesten Release herunterladen:
    - **`Proker-Setup-x.y.z.exe`** — Installer (Startmenü-Eintrag), oder
    - **`Proker-Portable-x.y.z.exe`** — läuft direkt ohne Installation.
 3. Datei ausführen. Windows SmartScreen kann warnen (App ist nicht signiert) →
@@ -106,16 +105,9 @@ Oben rechts in der App:
 
 Importe sind idempotent: vorhandene Turniere werden aktualisiert, nicht doppelt gezählt.
 
-### 5. ICM-Analyse nutzen
+### 5. Analyse nutzen
 
-Den Tab **„ICM-Analyse"** oben in der Navigation auswählen. Dort stehen vier Sektionen bereit:
-
-| Sektion | Verwendung |
-|---|---|
-| **ICM-Equity-Rechner** | Stacks und Auszahlungen eingeben → Bubble-Faktoren, Equity-Vergleich |
-| **Runden-Simulation** | Konkrete Karten wählen → exakte Win/Tie/Lose-Wahrscheinlichkeit + ICM-EV |
-| **Spot-Analyse** | Stack in BB, Position, Spielerzahl → Nash Push/Fold-Range mit ICM-Rangliste |
-| **Push/Fold-Referenz** | Schnellübersicht für Standardsituationen, speicherbar |
+Über die Navigation: **Dashboard**, **ICM-Analyse** (alle Rechner) und **Methodik** (Annahmen & Grenzen).
 
 ---
 
@@ -124,12 +116,12 @@ Den Tab **„ICM-Analyse"** oben in der Navigation auswählen. Dort stehen vier 
 | Typ | Quelle | Inhalt |
 |-----|--------|--------|
 | Tournament Summary | PokerStars `TournSummary/` | Buy-in, Platzierung, Payout |
-| Hand History | PokerStars `HandHistory/` | Spielstil-Stats (VPIP/PFR/…) |
+| Hand History | PokerStars `HandHistory/` | Spielstil-Stats, Chip-Bilanz (BB/100), Position |
 | PokerCraft Export | GGPoker `.zip` | Buy-in, Platzierung, Payout |
 
 Datensätze derselben Turnier-ID werden zusammengeführt. Turniere ohne Summary (`resultKnown = false`) fließen nicht in Profit/ROI/ITM ein, aber in die Spielstil-Statistiken.
 
-Daten werden lokal als `poker-data.json` im Electron-`userData`-Ordner gespeichert (oder einem frei wählbaren Ordner).
+Daten werden **lokal verschlüsselt** (OS-Schlüsselbund) als `poker-data.json` im Electron-`userData`-Ordner gespeichert (oder einem frei wählbaren Ordner).
 
 ---
 
@@ -139,6 +131,7 @@ Daten werden lokal als `poker-data.json` im Electron-`userData`-Ordner gespeiche
 npm install
 npm run dev        # Dev-Modus (Electron + Vite Hot-Reload)
 npm run typecheck  # TypeScript prüfen (vor jedem Commit)
+npm run verify     # Mathematik-/Parser-Verifikation (14 Suites)
 npm run build      # Produktions-Bundle nach out/
 npm run build:win  # Windows-Installer + Portable nach dist/
 ```
@@ -149,15 +142,15 @@ Stack: Electron 31 · electron-vite · React 18 · Tailwind 3 · Recharts · Typ
 
 ## Nutzung & Richtlinien
 
-Das Tool dient der **privaten Offline-Auswertung der eigenen Spielergebnisse**.
+Reines **Turnier-Analysewerkzeug** zur **privaten Offline-Auswertung der eigenen Spielergebnisse**. Cashgame und Rake sind nicht im Scope.
 
 **Bewusste Design-Einschränkungen:**
 
 - **Manueller Import, kein Datei-Watcher** — kein Echtzeit-Monitoring
-- **Kein HUD / kein Overlay** über dem Pokertisch
-- **Nur Hero-Daten** — keine Gegner-Statistiken
-- **Lokal** — keine Upload-Funktion für Hand-Histories
+- **Kein HUD / kein Overlay**, keine Automatisierung, kein Scraping/OCR
+- **Nur Hero-Daten** — keine Gegner-Statistiken; Export ohne Spielernamen
+- **Lokal & verschlüsselt** — keine Upload-/Cloud-Funktion
 
-Der ICM-Analyse-Tab ist ein **Post-Session-Analyse-Tool** — alle Berechnungen laufen lokal und offline.
+Alle Auswertungen sind **modellabhängig** und gelten nur für **abgeschlossene oder hypothetische** Spots — keine Echtzeit-Entscheidungshilfe für laufende Hände.
 
 **Risiko-Einordnung:** PokerStars erlaubt Post-Session-Analyse-Tools für eigene Daten (geringes Risiko). GGPoker ist restriktiver bezüglich Drittanbieter-Imports — GGPoker-Import erfolgt auf eigenes Risiko. Aktuelle ToS der Anbieter selbst prüfen.
