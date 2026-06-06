@@ -10,7 +10,7 @@ import { ALL_HAND_IDS } from '../data/pushFoldData'
 // Werte bleiben über die Session erhalten; localStorage-Persistierung für
 // nachfolgende Ladevorgänge.
 
-const STORAGE_KEY = 'poker-tracker:equity-cache-v2'  // v2: 200 iters/combo, SE < 1%
+const STORAGE_KEY = 'poker-tracker:equity-cache-v3'  // v3: Fix invertierter Flip-Equity-Bug; v2-Cache war korrupt
 const ITERS_PER_COMBO = 200  // 200 Iters × ~10 Combos = 2000 eff. Samples → SE ≈ 1 %
 
 // In-Memory-Cache
@@ -81,7 +81,10 @@ export function lookupEquity(h1: HandId, h2: HandId): number {
   const { key, flipped } = cacheKey(h1, h2)
 
   if (!memCache.has(key)) {
-    const eq = flipped ? 1 - computeCanonicalEquity(h2, h1) : computeCanonicalEquity(h1, h2)
+    // Cache speichert immer E(A,B) der kanonischen Paar-Reihenfolge (A=key-erste Hand).
+    // Bei flipped ist die kanonische Paarung (h2,h1) → direkt E(h2,h1) speichern.
+    // Das Flipping wird ausschließlich beim Rückgabewert (1 - eq) angewandt.
+    const eq = flipped ? computeCanonicalEquity(h2, h1) : computeCanonicalEquity(h1, h2)
     memCache.set(key, eq)
     // Kein persistCache() pro Eintrag — zu langsam. Batch-Persist am Ende.
   }
@@ -93,19 +96,36 @@ export function lookupEquity(h1: HandId, h2: HandId): number {
 /**
  * Equity von hand h gegen eine gewichtete Range.
  * range: Map von HandId → Gewicht (0–1), typischerweise aus Nash-Calling-Range.
+ *
+ * heroCards (optional): konkrete bzw. repräsentative Karten des Heroes. Wenn gesetzt,
+ * werden Gegner-Combos, die eine Hero-Karte enthalten, per Karten-Removal entfernt —
+ * der Gewichtungsanteil einer Gegnerhand sinkt entsprechend dem Anteil noch möglicher
+ * Combos. Ohne heroCards wird nur das identische Hand-Cluster grob ausgeschlossen.
  */
 export function lookupEquityVsRange(
   h: HandId,
   range: Map<HandId, number>,
+  heroCards?: readonly [Card, Card],
 ): number {
   let sumEq = 0
   let sumW  = 0
 
   for (const [opponent, weight] of range) {
-    if (opponent === h) continue  // gleiches Hand-Cluster ignorieren
+    let effWeight = weight
+    if (heroCards) {
+      const combos = handIdToCombos(opponent)
+      let valid = 0
+      for (const [a, b] of combos) {
+        if (a !== heroCards[0] && a !== heroCards[1] && b !== heroCards[0] && b !== heroCards[1]) valid++
+      }
+      if (valid === 0) continue  // Gegnerhand vollständig durch Hero-Karten blockiert
+      effWeight = weight * (valid / combos.length)
+    } else if (opponent === h) {
+      continue  // grober Blocker, wenn keine konkreten Karten vorliegen
+    }
     const eq = lookupEquity(h, opponent)
-    sumEq += eq * weight
-    sumW  += weight
+    sumEq += eq * effWeight
+    sumW  += effWeight
   }
 
   return sumW > 0 ? sumEq / sumW : 0.5

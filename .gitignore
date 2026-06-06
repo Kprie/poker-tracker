@@ -4,3 +4,8 @@ dist
 *.log
 .DS_Store
 *.tsbuildinfo
+
+# Verifikations-Artefakte (warmer Equity-Cache + esbuild-Bundles)
+scripts/.equity-cache.json
+scripts/.verify-*.bundle.mjs
+.claude/worktrees

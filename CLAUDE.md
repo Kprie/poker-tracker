@@ -128,7 +128,7 @@ Added in v0.5 — standalone tab next to Dashboard in `App.tsx`.
 - `EvMode` — `'icm_pct' | 'icm_usd' | 'chip_ev' | 'chip_bb'`
 - `computeIcmEquities(stacks, payouts): number[]` — Malmuth-Harville recursion, O(n!/(n-m)!)
 - `computePositionEquities(stacks, payouts): number[][]` — per-player per-place equity contribution (used by LadderChart)
-- `computeBubbleFactors(stacks, payouts): number[][]` — BF[i][j], diagonal = NaN. Uses 0.1 % total-chips delta.
+- `computeBubbleFactors(stacks, payouts): number[][]` — BF[i][j], diagonal = NaN. Symmetric finite-difference: delta = 0.05 % of total chips, clamped to ½·min(stack_i, stack_j) so neither stack goes negative (stable for short stacks).
 - `convertEquities(equities, stacks, payouts, mode, bbSize?)` — converts raw ICM equities to display mode
 
 #### cards.ts
@@ -143,24 +143,27 @@ Added in v0.5 — standalone tab next to Dashboard in `App.tsx`.
 - `eval7arr(cards)` — array-input wrapper for compatibility
 
 #### equityTable.ts — lazy equity cache
-- `lookupEquity(h1, h2): number` — hand-vs-hand MC equity, cached in memory + `localStorage` key `'poker-tracker:equity-cache-v1'`
-- `lookupEquityVsRange(h, range: Map<HandId,number>): number` — weighted average against a range
+- `lookupEquity(h1, h2): number` — hand-vs-hand MC equity, cached in memory + `localStorage` key `'poker-tracker:equity-cache-v3'`
+- `lookupEquityVsRange(h, range: Map<HandId,number>, heroCards?: readonly [Card,Card]): number` — weighted average against a range. When `heroCards` is passed, villain hand-classes are down-weighted by the fraction of their combos that survive card-removal (hero blocking); fully blocked hands are skipped. Without `heroCards` only the identical hand-class is skipped (coarse blocker).
 - `precomputeAllEquities(onProgress?, chunkSize?): Promise<void>` — async chunked precomputation via `setTimeout(0)`; call from UI to warm cache
 - `cachedPairCount(): number`, `TOTAL_PAIR_COUNT = 14365`
-- `ITERS_PER_COMBO = 25` — 25 iters × ~10 combos/hand = ~250 effective samples per pair, SE ≈ 3 %
+- `ITERS_PER_COMBO = 200` — 200 iters × ~10 combos/hand = ~2000 effective samples per pair, SE ≈ 1 %
+- **Canonical-key correctness**: cache key `A_B` (A≤B lexically) stores `E(A,B)`. The flipped branch stores `computeCanonicalEquity(h2,h1)` directly; the `1 - eq` inversion is applied **only** on return. (Earlier code double-inverted, corrupting all flipped pairs — fixed; cache bumped v2→v3.)
 - Cache is **not** persisted per-entry (too slow); `persistCache()` is called once at the end of `precomputeAllEquities`
 
 #### nashSolver.ts — iterative push/fold Nash solver
 - `solveNash(input: NashInput): NashResult`
-- Algorithm: **Alternating Best Response (ABR)**
-  1. Init call-range = all 169 hands
-  2. Compute hero push EV per hand via `lookupEquityVsRange` + real ICM deltas → push-range
-  3. Compute villain call EV per hand → call-range
-  4. Repeat until convergence (`convergenceThreshold = 0.02`, `maxIterations = 12`)
+- Algorithm: **damped fictitious play** (ABR with continuous frequencies)
+  1. Init call-freq = 1.0 for all 169 hands, push-freq = 0
+  2. Each iteration: best-response target per hand (push/call EV sign), then `freq = freq·(1−λ) + target·λ` with `DAMPING λ = 0.5` — damping kills the oscillation that plain ABR (hard 0/1 swaps) often fails to converge through
+  3. `lookupEquityVsRange` is called with a **representative combo** (`handIdToCombos(hand)[0]`) so card-removal/blocking is applied during range construction
+  4. Converge when max per-hand freq change < `convergenceThreshold = 0.01` (`maxIterations = 20`)
+  5. Final pass recomputes pure-strategy `freq` (0/1) from EV sign vs the converged opponent range — **output contract unchanged** (freq still 0 or 1)
 - `NashHandResult` — `{ handId, ev, freq, equity }`; `freq` is 0 or 1 (pure strategy)
 - `NashInput` — `{ stacks, payouts, bbSize, ante, callerIdx=1, maxIterations, convergenceThreshold }`
 - `getHandNashResult(result, handId, isHero): NashHandResult | null`
 - ICM deltas computed via 4 scenarios: current / win-pot / win-call / lose-call (each a full Malmuth-Harville pass)
+- ⚠️ **Open bug B6** (pre-existing, not yet fixed): `computeIcmDeltas` is not chip-conserving — win-pot adds the full `pot` to hero without decrementing villain, and win/lose-call add `+pot` on top of the effective-stack swap. This inflates fold equity → push ranges come out too wide (≈100 % at 10 bb HU SB). Same pattern in `computeIcmScenarios` (equity.ts). Fix requires correct blind/pot accounting + verification.
 - First call: ~15–30 s if equity cache is cold; subsequent calls: near-instant
 
 #### equity.ts — Monte Carlo equity + ICM scenarios
@@ -244,14 +247,18 @@ Static push/fold reference. Save/load spots to `localStorage` key `'poker-tracke
 
 ## Upgrade Roadmap
 
-Full phased plan in `plans/00-professional-upgrade.md`. Summary of known bugs to fix:
+Full phased plan in `plans/00-professional-upgrade.md`. Bug status:
 
-| ID | File | Bug |
-|----|------|-----|
-| B1 | `nashSolver.ts` ~L158 | P(Call) ignores hero blocking — divides by 1326 instead of 1225 (50 choose 2) |
-| B2 | `equity.ts` ~L68 | callFraction uses `range.length` instead of `range.reduce((s,r)=>s+r.weight,0)` |
-| B3 | `pokerstars-hh.ts` ~L131 | 3-Bet opportunity set after hero action instead of before |
-| B4 | `analytics.ts` | `bankrollSeries()` / `computeItmDepth()` don't enforce `withResults()` internally |
+| ID | File | Bug | Status |
+|----|------|-----|--------|
+| B1 | `nashSolver.ts` | P(Call) ignored hero blocking — divided by 1326 instead of 1225 (50 choose 2) | ✅ fixed |
+| B2 | `equity.ts` | callFraction used `range.length` instead of weighted sum | ✅ fixed |
+| B3 | `pokerstars-hh.ts` | 3-Bet timing — verified correct, no bug (comment added) | ✅ verified |
+| B4 | `analytics.ts` | `bankrollSeries()` / `computeItmDepth()` / `groupBy()` now enforce `withResults()` | ✅ fixed |
+| B5 | `equityTable.ts` | **Critical**: flipped equity pairs were double-inverted → all `lookupEquity` calls where `h1 > h2` lexically returned `1 − correct`. Corrupted every Nash result + range-equity display. | ✅ fixed (cache→v3) |
+| B6 | `nashSolver.ts` / `equity.ts` | `computeIcmDeltas` / `computeIcmScenarios` not chip-conserving (pot accounting) → push ranges too wide | 🔴 open |
+
+Verification scripts: `scripts/verify-icm.mjs` (money math, fast), `scripts/verify-equity.mjs` (equity layer), `scripts/verify-nash.mjs` (solver). Run via `npx esbuild scripts/<f>.mjs --bundle --platform=node --format=esm --outfile=scripts/.t.mjs && node scripts/.t.mjs`.
 
 ## Common gotchas
 1. **Don't compute rates on HandStatsAgg** — always sum raw counts first, then divide. `computePlayStyle` is the single place that does this.
@@ -264,5 +271,6 @@ Full phased plan in `plans/00-professional-upgrade.md`. Summary of known bugs to
 8. **Nash solver is slow on cold cache** — first `solveNash()` call may take 15–30 s while `equityTable` computes ~3000 hand-pair equities on demand. Subsequent calls use the localStorage cache and are near-instant. Use `precomputeAllEquities()` with the `PrecomputeBanner` to warm the cache proactively.
 9. **`handIdToCombos` is in `cards.ts`**, not `pushFoldData.ts`. Import from `'../lib/cards'`.
 10. **ICM Bubble Factors**: diagonal is `NaN` (player vs themselves). Always guard against NaN in BubbleFactorMatrix rendering.
-11. **Nash P(Call) known bug**: `totalCallCombos` in `nashSolver.ts` uses 1326 (all combos) instead of 1225 (50 choose 2, after hero's 2 cards removed). Fix before relying on Nash results for concrete hand analysis.
-12. **ABR ≠ true Nash**: `solveNash()` uses Alternating Best Response which can oscillate. Results are good approximations for push/fold spots but not mathematically guaranteed Nash equilibria.
+11. **Equity cache canonical key**: `lookupEquity` stores `E(A,B)` under key `A_B` (A≤B). Inversion for the reverse direction happens **only on return** (`1 - eq`), never on store. Don't reintroduce a `1 -` in the store branch (that was bug B5). When changing equity math, bump `STORAGE_KEY` so stale/corrupt caches are discarded.
+12. **Nash solver convergence**: `solveNash()` uses damped fictitious play (λ=0.5) over continuous frequencies, then emits pure-strategy freq (0/1). It's a strong approximation, not a guaranteed exact Nash equilibrium. First call on a cold equity cache takes ~5 min (computes ~14k MC pairs); warm cache is near-instant.
+13. **Open bug B6** — `computeIcmDeltas`/`computeIcmScenarios` pot accounting isn't chip-conserving; push ranges come out too wide. Don't trust absolute push-range width until fixed.

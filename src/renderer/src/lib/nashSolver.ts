@@ -127,77 +127,76 @@ export function solveNash(input: NashInput): NashResult {
     bbSize,
     ante,
     callerIdx = 1,
-    maxIterations = 12,
-    convergenceThreshold = 0.02,
+    maxIterations = 20,
+    convergenceThreshold = 0.01,
   } = input
 
   const heroIdx = 0
   const deltas = computeIcmDeltas(stacks, payouts, heroIdx, callerIdx, bbSize, ante)
-
-  // ── Initialisierung ────────────────────────────────────────────────────────
-  // Caller startet mit einer weiten Range (alle Hände), Hero-Push-Range leer
-  let callRange: Map<HandId, number> = new Map(ALL_HAND_IDS.map(id => [id, 1.0]))
-  let pushRange: Map<HandId, number> = new Map()
+  // ICM aus Villain-Sicht (Hero = callerIdx, Villain = heroIdx für den Call-Schritt)
+  const villainDeltas = computeIcmDeltas(stacks, payouts, callerIdx, heroIdx, bbSize, ante)
 
   const totalCallCombos = VILLAIN_COMBOS
+
+  // Fictitious-Play-Dämpfung: statt harter Range-Wechsel (0/1 pro Iteration) werden
+  // die Frequenzen kontinuierlich Richtung Best-Response gezogen. Das verhindert die
+  // Oszillation, an der reines Alternating Best Response häufig nicht konvergiert.
+  const DAMPING = 0.5
+
+  // Kontinuierliche Mit-Frequenz je Hand (0–1). Caller startet weit, Hero leer.
+  const callFreq = new Map<HandId, number>(ALL_HAND_IDS.map(id => [id, 1]))
+  const pushFreq = new Map<HandId, number>(ALL_HAND_IDS.map(id => [id, 0]))
+
+  // EV des Hero-Pushs einer Hand gegen die aktuelle (gewichtete) Call-Range.
+  const heroPushEv = (hHand: HandId, pCall: number): { ev: number; eq: number } => {
+    // Repräsentativer Combo der Hand für Karten-Removal in der Gegner-Range.
+    const heroRep = handIdToCombos(hHand)[0]
+    const eq = lookupEquityVsRange(hHand, callFreq, heroRep)
+    const pFold = 1 - pCall
+    // EV(push) = P(fold) × Δ_winPot + P(call) × [eq × Δ_winCall + (1−eq) × Δ_loseCall]
+    const ev = pFold * deltas.winPot + pCall * (eq * deltas.winCall + (1 - eq) * deltas.loseCall)
+    return { ev, eq }
+  }
+
+  // EV des Villain-Calls einer Hand gegen die aktuelle (gewichtete) Push-Range.
+  const villainCallEv = (vHand: HandId, pPush: number): { ev: number; eq: number } => {
+    const vilRep = handIdToCombos(vHand)[0]
+    const eq = lookupEquityVsRange(vHand, pushFreq, vilRep)
+    // EV(call) = P(push) × [eq × Δ_winCall + (1−eq) × Δ_loseCall], EV(fold) = 0
+    const ev = pPush * (eq * villainDeltas.winCall + (1 - eq) * villainDeltas.loseCall)
+    return { ev, eq }
+  }
+
   let converged = false
   let iter = 0
 
   for (; iter < maxIterations; iter++) {
-    // ── Schritt A: Hero-Push-Range ────────────────────────────────────────
-    const prevPushSize = pushRange.size
-    const newPushRange = new Map<HandId, number>()
-    const heroPushResults = new Map<HandId, NashHandResult>()
+    let maxChange = 0
 
+    // ── Schritt A: Hero-Push-Frequenzen (gedämpft) ───────────────────────
+    // P(call) hängt nur von der aktuellen Call-Range ab → einmal pro Sweep.
+    const callW = rangeWeight(callFreq)
+    const pCall = Math.min(1, callW / totalCallCombos)
     for (const hHand of ALL_HAND_IDS) {
-      const eq = lookupEquityVsRange(hHand, callRange)
-
-      // P(call): gewichtete Call-Kombos / verfügbare Villain-Combos (C(50,2)=1225, Hero-Karten entfernt)
-      const callW = rangeWeight(callRange)
-      const pCall = Math.min(1, callW / totalCallCombos)
-      const pFold = 1 - pCall
-
-      // EV(push) = P(fold) × Δ_winPot + P(call) × [eq × Δ_winCall + (1−eq) × Δ_loseCall]
-      const evPush = pFold * deltas.winPot
-        + pCall * (eq * deltas.winCall + (1 - eq) * deltas.loseCall)
-
-      heroPushResults.set(hHand, { handId: hHand, ev: evPush, freq: evPush > 0 ? 1 : 0, equity: eq })
-
-      if (evPush > 0) newPushRange.set(hHand, 1.0)
-    }
-    pushRange = newPushRange
-
-    // ── Schritt B: Villain-Call-Range ─────────────────────────────────────
-    const prevCallSize = callRange.size
-    const newCallRange = new Map<HandId, number>()
-    const villainCallResults = new Map<HandId, NashHandResult>()
-
-    if (pushRange.size > 0) {
-      // ICM aus Villain-Sicht (Hero = callerIdx, Villain = heroIdx für diesen Schritt)
-      const villainDeltas = computeIcmDeltas(stacks, payouts, callerIdx, heroIdx, bbSize, ante)
-      const pushW = rangeWeight(pushRange)
-
-      for (const vHand of ALL_HAND_IDS) {
-        // Equity des Villains gegen Hero-Push-Range
-        const vilEq = lookupEquityVsRange(vHand, pushRange)
-
-        const pPush = Math.min(1, pushW / totalCallCombos)
-
-        // EV(call) = pPush × [vilEq × Δ_winCall + (1−vilEq) × Δ_loseCall]
-        // EV(fold) = 0 (kein Dead Money vom Villain in diesem vereinfachten Modell)
-        const evCall = pPush * (vilEq * villainDeltas.winCall + (1 - vilEq) * villainDeltas.loseCall)
-
-        villainCallResults.set(vHand, { handId: vHand, ev: evCall, freq: evCall > 0 ? 1 : 0, equity: vilEq })
-
-        if (evCall > 0) newCallRange.set(vHand, 1.0)
-      }
-      callRange = newCallRange
+      const target = heroPushEv(hHand, pCall).ev > 0 ? 1 : 0
+      const prev = pushFreq.get(hHand)!
+      const next = prev * (1 - DAMPING) + target * DAMPING
+      pushFreq.set(hHand, next)
+      maxChange = Math.max(maxChange, Math.abs(next - prev))
     }
 
-    // ── Konvergenz-Check ──────────────────────────────────────────────────
-    const pushDelta = Math.abs(pushRange.size - prevPushSize) / ALL_HAND_IDS.length
-    const callDelta = Math.abs(callRange.size - prevCallSize) / ALL_HAND_IDS.length
-    if (pushDelta < convergenceThreshold && callDelta < convergenceThreshold) {
+    // ── Schritt B: Villain-Call-Frequenzen (gedämpft) ────────────────────
+    const pushW = rangeWeight(pushFreq)
+    const pPush = Math.min(1, pushW / totalCallCombos)
+    for (const vHand of ALL_HAND_IDS) {
+      const target = villainCallEv(vHand, pPush).ev > 0 ? 1 : 0
+      const prev = callFreq.get(vHand)!
+      const next = prev * (1 - DAMPING) + target * DAMPING
+      callFreq.set(vHand, next)
+      maxChange = Math.max(maxChange, Math.abs(next - prev))
+    }
+
+    if (maxChange < convergenceThreshold) {
       converged = true
       iter++
       break
@@ -205,27 +204,22 @@ export function solveNash(input: NashInput): NashResult {
   }
 
   // ── Finales Ergebnis ──────────────────────────────────────────────────────
+  // Reine Strategie (freq 0/1) anhand des EV-Vorzeichens gegen die konvergierte
+  // Gegner-Range — bewahrt den dokumentierten Pure-Strategy-Kontrakt.
+  const finalCallW = rangeWeight(callFreq)
+  const finalPCall = Math.min(1, finalCallW / totalCallCombos)
   const finalPushResults = new Map<HandId, NashHandResult>()
   for (const hHand of ALL_HAND_IDS) {
-    const eq = lookupEquityVsRange(hHand, callRange)
-    const callW = rangeWeight(callRange)
-    const pCall = Math.min(1, callW / totalCallCombos)
-    const pFold = 1 - pCall
-    const evPush = pFold * deltas.winPot
-      + pCall * (eq * deltas.winCall + (1 - eq) * deltas.loseCall)
-    finalPushResults.set(hHand, { handId: hHand, ev: evPush, freq: evPush > 0 ? 1 : 0, equity: eq })
+    const { ev, eq } = heroPushEv(hHand, finalPCall)
+    finalPushResults.set(hHand, { handId: hHand, ev, freq: ev > 0 ? 1 : 0, equity: eq })
   }
 
+  const finalPushW = rangeWeight(pushFreq)
+  const finalPPush = Math.min(1, finalPushW / totalCallCombos)
   const finalCallResults = new Map<HandId, NashHandResult>()
-  if (pushRange.size > 0) {
-    const villainDeltas = computeIcmDeltas(stacks, payouts, callerIdx, heroIdx, bbSize, ante)
-    const pushW = rangeWeight(pushRange)
-    for (const vHand of ALL_HAND_IDS) {
-      const vilEq = lookupEquityVsRange(vHand, pushRange)
-      const pPush = Math.min(1, pushW / totalCallCombos)
-      const evCall = pPush * (vilEq * villainDeltas.winCall + (1 - vilEq) * villainDeltas.loseCall)
-      finalCallResults.set(vHand, { handId: vHand, ev: evCall, freq: evCall > 0 ? 1 : 0, equity: vilEq })
-    }
+  for (const vHand of ALL_HAND_IDS) {
+    const { ev, eq } = villainCallEv(vHand, finalPPush)
+    finalCallResults.set(vHand, { handId: vHand, ev, freq: ev > 0 ? 1 : 0, equity: eq })
   }
 
   return {

@@ -60,32 +60,36 @@ export function computePositionEquities(stacks: number[], payouts: number[]): nu
  */
 export function computeBubbleFactors(stacks: number[], payouts: number[]): number[][] {
   const n = stacks.length
-  const delta = Math.max(1, Math.floor(sum(stacks) * 0.001))
+  const totalChips = sum(stacks)
   const baseEquities = computeIcmEquities(stacks, payouts)
   const bf: number[][] = Array.from({ length: n }, () => new Array<number>(n).fill(NaN))
+
+  // Feineres Basis-Delta (0.05 % der Chips) für eine genauere numerische Ableitung.
+  const baseDelta = Math.max(1, Math.round(totalChips * 0.0005))
 
   for (let i = 0; i < n; i++) {
     for (let j = 0; j < n; j++) {
       if (i === j) continue
 
-      if (stacks[j] >= delta) {
-        const sw = [...stacks]
-        sw[i] += delta
-        sw[j] -= delta
-        const gain = computeIcmEquities(sw, payouts)[i] - baseEquities[i]
-
-        if (stacks[i] > delta) {
-          const sl = [...stacks]
-          sl[i] -= delta
-          sl[j] += delta
-          const loss = baseEquities[i] - computeIcmEquities(sl, payouts)[i]
-          bf[i][j] = gain > 0 ? loss / gain : Infinity
-        } else {
-          bf[i][j] = Infinity
-        }
-      } else {
+      // Symmetrisches Delta: darf weder Stack i noch Stack j ins Negative ziehen,
+      // damit Gewinn- und Verlust-Szenario mit identischer Schrittweite gemessen werden.
+      const delta = Math.min(baseDelta, Math.floor(stacks[i] / 2), Math.floor(stacks[j] / 2))
+      if (delta < 1) {
         bf[i][j] = Infinity
+        continue
       }
+
+      const sw = [...stacks]
+      sw[i] += delta
+      sw[j] -= delta
+      const gain = computeIcmEquities(sw, payouts)[i] - baseEquities[i]
+
+      const sl = [...stacks]
+      sl[i] -= delta
+      sl[j] += delta
+      const loss = baseEquities[i] - computeIcmEquities(sl, payouts)[i]
+
+      bf[i][j] = gain > 0 ? loss / gain : Infinity
     }
   }
   return bf
