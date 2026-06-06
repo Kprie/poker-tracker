@@ -11,7 +11,10 @@
     "build:win": "electron-vite build && electron-builder --win",
     "typecheck:node": "tsc --noEmit -p tsconfig.node.json --composite false",
     "typecheck:web": "tsc --noEmit -p tsconfig.web.json --composite false",
-    "typecheck": "npm run typecheck:node && npm run typecheck:web"
+    "typecheck": "npm run typecheck:node && npm run typecheck:web",
+    "verify:icm": "node scripts/run-verify.mjs scripts/verify-icm.mjs",
+    "verify:b6": "node scripts/run-verify.mjs scripts/verify-b6.mjs",
+    "verify": "npm run verify:icm && npm run verify:b6"
   },
   "dependencies": {
     "@fontsource-variable/geist": "^5.2.9",
