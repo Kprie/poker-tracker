@@ -38,8 +38,8 @@ function rangeWeight(range: Map<HandId, number>): number {
   return total
 }
 
-/** Maximale mögliche Villain-Kombos (ohne Hero-Blocking). */
-const MAX_COMBOS = 1326  // C(52,2)
+/** Verfügbare Villain-Kombos nach Abzug der 2 Hero-Karten. */
+const VILLAIN_COMBOS = 1225  // C(50,2): alle Villain-Combos nach Abzug der 2 Hero-Karten
 
 // ─── ICM-Szenario-Berechnung ──────────────────────────────────────────────────
 
@@ -139,7 +139,7 @@ export function solveNash(input: NashInput): NashResult {
   let callRange: Map<HandId, number> = new Map(ALL_HAND_IDS.map(id => [id, 1.0]))
   let pushRange: Map<HandId, number> = new Map()
 
-  const totalCallCombos = MAX_COMBOS
+  const totalCallCombos = VILLAIN_COMBOS
   let converged = false
   let iter = 0
 
@@ -152,8 +152,7 @@ export function solveNash(input: NashInput): NashResult {
     for (const hHand of ALL_HAND_IDS) {
       const eq = lookupEquityVsRange(hHand, callRange)
 
-      // P(call): Anteil der Villain-Hände die laut Call-Range callen
-      // Gewichtete Call-Kombos / Max-Kombos (ohne Blocking; vereinfacht)
+      // P(call): gewichtete Call-Kombos / verfügbare Villain-Combos (C(50,2)=1225, Hero-Karten entfernt)
       const callW = rangeWeight(callRange)
       const pCall = Math.min(1, callW / totalCallCombos)
       const pFold = 1 - pCall

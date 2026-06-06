@@ -113,8 +113,9 @@ export interface BankrollPoint {
 }
 
 export function bankrollSeries(rows: Tournament[]): BankrollPoint[] {
+  const res = withResults(rows)
   let cum = 0
-  return rows.map((t, i) => {
+  return res.map((t, i) => {
     cum += t.profit
     return {
       date: t.startDate.slice(0, 10),
@@ -137,6 +138,7 @@ export interface GroupStat {
 }
 
 function groupBy(rows: Tournament[], keyFn: (t: Tournament) => string): GroupStat[] {
+  rows = withResults(rows)
   const map = new Map<string, Tournament[]>()
   for (const t of rows) {
     const k = keyFn(t)
@@ -245,9 +247,10 @@ const ITM_TIERS: { label: string; test: (t: Tournament) => boolean }[] = [
 ]
 
 export function computeItmDepth(rows: Tournament[]): ItmTier[] {
-  const total = rows.length
+  const res = withResults(rows)
+  const total = res.length
   return ITM_TIERS.map(({ label, test }) => {
-    const matches = rows.filter(test)
+    const matches = res.filter(test)
     const avgProfit = matches.length ? round(sum(matches, (t) => t.profit) / matches.length) : 0
     return { label, count: matches.length, pct: total ? matches.length / total : 0, avgProfit }
   })

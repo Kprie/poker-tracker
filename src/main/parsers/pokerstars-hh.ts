@@ -124,6 +124,9 @@ function parseHand(block: string): HandResult | null {
   let raisesSeen = 0
   let heroProcessed = false
   let heroFoldedPreflop = false
+  // raisesSeen wird am Ende jeder Iteration inkrementiert. Da Hero-Verarbeitung
+  // nur bei heroLine=true erfolgt und raisesSeen++ danach kommt, ist bei Heros
+  // eigener Raise-Zeile raisesSeen noch der Wert VOR Heros Raise — korrekt.
   for (const line of preflop.split('\n')) {
     const verb = classifyVerb(line)
     if (!verb) continue

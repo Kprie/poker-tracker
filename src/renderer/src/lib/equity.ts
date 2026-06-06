@@ -64,10 +64,9 @@ export function computeEquityMC(
   // Gewichtete Sampling-Tabelle (alias method wäre optimal; hier direkte weighted-pick)
   const totalWeight = range.reduce((s, r) => s + r.weight, 0)
 
-  // Gesamtmögliche Villain-Combos ohne Hero-Blocking (für callFraction)
-  const maxCombos = 1326 - 3 * 2  // grobe Näherung: 1326 - blocked combos
-  const weightedCombos = range.length  // vereinfacht (jede Combo ≈ gleich gewichtet für Fraction)
-  const callFraction = Math.min(1, weightedCombos / maxCombos)
+  // callFraction: gewichtete Combo-Summe / verfügbare Villain-Combos (C(50,2)=1225 nach Hero-Blocking)
+  const weightedCombos = range.reduce((s, r) => s + r.weight, 0)
+  const callFraction = Math.min(1, weightedCombos / 1225)
 
   // Deck ohne Hero-Karten
   const deckWithoutHero = FULL_DECK.filter(c => c !== heroCards[0] && c !== heroCards[1])
