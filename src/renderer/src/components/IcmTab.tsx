@@ -9,6 +9,7 @@ import { IcmCompareChart } from './IcmCompareChart'
 import { PushFoldPanel } from './PushFoldPanel'
 import { SpotAnalyzer } from './SpotAnalyzer'
 import { RoundSimulator } from './RoundSimulator'
+import { PotOddsCalculator } from './PotOddsCalculator'
 
 // Sub-Tab-Leiste innerhalb der ICM-Ergebnis-Sektion
 const RESULT_TABS = [
@@ -76,6 +77,11 @@ export function IcmTab(): JSX.Element {
       {/* ── Spot-Analyse ──────────────────────────────────────────────────── */}
       <Section title="Spot-Analyse">
         <SpotAnalyzer />
+      </Section>
+
+      {/* ── Pot-Odds & EV ─────────────────────────────────────────────────── */}
+      <Section title="Pot-Odds & EV-Rechner">
+        <PotOddsCalculator />
       </Section>
 
       {/* ── Push/Fold-Referenz ────────────────────────────────────────────── */}
