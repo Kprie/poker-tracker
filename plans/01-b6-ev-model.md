@@ -2,7 +2,12 @@
 
 Erstellt: 2026-06-06
 Status: **Plan** (noch kein Code — vom Nutzer so gewünscht)
-Scope-Entscheidung des Nutzers: **voll multiway exakt** (nicht nur HU)
+
+## Gesperrte Entscheidungen (vom Nutzer bestätigt)
+1. **Scope:** voll multiway exakt (nicht nur HU).
+2. **Stack-Definition:** Eingangs-Stacks gelten **vor** Blind-/Ante-Posting → saubere Chip-Erhaltung. Das EV-Modell zieht Posts intern ab. UI-Konsequenz ist zu prüfen (§2.5).
+3. **Fold-Rest-Baum (multiway):** **rekursiv exakt** — Hero-Fold löst den kleineren Push/Fold-Subgame der verbleibenden Spieler. Keine Näherung.
+4. **Performance:** erst mathematisch korrekt (auch wenn langsam), Optimierung/Web-Worker später.
 
 ---
 
@@ -53,7 +58,14 @@ Hero gibt seine bereits geposteten Chips auf; sein Stack = `S_hero − post_hero
 Das Dead Money `pot0` geht an die verbleibende Blind-/Push-Fold-Auseinandersetzung der Spieler hinter Hero.
 
 - **HU (Hero = SB):** Fold → SB verliert 0.5bb, BB gewinnt 0.5bb. Config: `[S_sb − 0.5bb, S_bb + 0.5bb]`. Chip-erhaltend. ✓
-- **Multiway (Hero = BTN/CO/…, Blinds dahinter):** Hero foldet → der Subgame-Baum (SB vs BB push/fold) läuft weiter. Für **voll exakt** muss dieser Rest-Baum modelliert werden (rekursiv kleinerer Spot). Pragmatische, dokumentierte Näherung als Phase-Zwischenstand: Rest-Spieler behalten ihre Posts (kein weiteres Spiel) — als bewusste Vereinfachung markieren, in der finalen Phase durch echten Rest-Baum ersetzen.
+- **Multiway (Hero = BTN/CO/…, Blinds dahinter):** Hero foldet → der Subgame-Baum (SB vs BB push/fold) läuft weiter. **Entscheidung: rekursiv exakt** — `EV_ICM(fold)` = ICM-Erwartung über die Lösung des kleineren Push/Fold-Spots der verbleibenden Spieler (Hero ausgeschieden, mit `S_hero − post_hero`). Implementiert in Phase B6.4 als rekursiver `solveNash`-Aufruf auf der Rest-Tisch-Konstellation. Keine Näherung.
+
+### 2.5 Blind-Positionen & UI-Konsequenz
+
+Das Modell muss wissen, **wer** SB/BB/Ante postet. Ableitung aus `players` + `position` (SpotAnalyzer-Inputs):
+- Posts pro Sitz aus der Tisch-Position bestimmen (SB = 0.5bb, BB = 1bb, Ante je nach Format für alle).
+- `heroIdx`/`callerIdx` bleiben, aber `post_i` wird positionsbasiert für **alle** Sitze berechnet, nicht nur Hero/Caller.
+- **UI-Check:** Aktuell nimmt `IcmCalculator`/`SpotAnalyzer` Stacks „wie eingegeben". Mit Stacks-vor-Posting bleibt die reine **ICM-Equity-Anzeige** (icm.ts) unverändert (zeigt ICM der eingegebenen Stacks). Nur die **Push/Fold-EV-Szenarien** ziehen Posts intern ab. → Kein Bruch der Equity-Anzeige; ggf. Hinweistext „Stacks vor Blinds" in der Spot-Analyse. Vor B6.1-Abschluss verifizieren, dass die SpotAnalyzer-Stacks tatsächlich Pre-Posting-Werte sind.
 
 ### 2.4 Shove-Knoten, multiway (der Kern)
 
@@ -92,14 +104,14 @@ Das ist exakt (MC-geschätzt). Nicht-all-in-Spieler (gefoldet) behalten `S_k −
 - `evShoveMultiway(...)` = Caller-Set-Enumeration × Side-Pots × MC-Boards × ICM-pro-Sample.
 - **Verifikation:** Chip-Erhaltung pro Sample asserten (Σ resultierende Stacks == T). 3-handed Spot gegen ICMIZER/HRC-Referenz (falls verfügbar) oder Plausibilität.
 
-### Phase B6.4 — Integration in Nash-Solver (multiway) + Performance
+### Phase B6.4 — Integration in Nash-Solver (multiway) + rekursiver Fold-Baum
 - Solver-Schleife nutzt `evShoveMultiway` statt der HU-Deltas; jeder Gegner mit eigener Call-Frequenz; sequenzielle Positionslogik.
-- **Fold-Rest-Baum** (2.3 multiway) korrekt modellieren (rekursiver kleinerer Push/Fold-Spot) → ersetzt die Phase-B6.1-Näherung.
-- **Performance:** MC-Boards + ICM-pro-Sample in der 169×Iterationen-Schleife ist teuer. Maßnahmen:
+- **Fold-Rest-Baum (rekursiv exakt):** `EV_ICM(fold)` löst per rekursivem `solveNash` den Push/Fold-Spot der verbleibenden Spieler (Hero raus, `S_hero − post_hero`). Rekursions-Abbruch bei HU-Restspot (B6.1-Basisfall). Tiefe ≤ Spielerzahl, mit Memoisierung gegen Wiederholung gleicher Restkonstellationen.
+- **Performance — bewusst nachgelagert (Korrektheit zuerst):** zunächst die mathematisch korrekte Variante implementieren, auch wenn ein Solve mehrere Minuten dauert. Erst danach optimieren, falls nötig:
   - Multiway-Equities cachen (analog equityTable).
-  - Caller-Sets beschränken (in der Praxis dominiert 0–1 Caller; 2+ selten).
-  - Ggf. Web Worker (siehe Plan 00, Phase 5.1) wegen Laufzeit.
-- **Verifikation:** 3-/4-handed BTN-Push-Ranges plausibel enger als HU; Laufzeit dokumentieren.
+  - Memoisierung der Rest-Baum-Solves.
+  - Ggf. Web Worker (siehe Plan 00, Phase 5.1) wegen Laufzeit/UI-Blockade.
+- **Verifikation:** 3-/4-handed BTN-Push-Ranges plausibel enger als HU; Chip-Erhaltung pro Sample; Laufzeit dokumentieren.
 
 ---
 
