@@ -11,6 +11,7 @@ import { IcmCompareChart } from './IcmCompareChart'
 import { PushFoldPanel } from './PushFoldPanel'
 import { SpotAnalyzer } from './SpotAnalyzer'
 import { RoundSimulator } from './RoundSimulator'
+import { EquityLab } from './EquityLab'
 import { PotOddsCalculator } from './PotOddsCalculator'
 import { PkoBountyPanel } from './PkoBountyPanel'
 
@@ -83,6 +84,11 @@ export function IcmTab(): JSX.Element {
       {/* ── Hand-Analyse ─────────────────────────────────────────────────── */}
       <Section title="Hand-Analyse">
         <RoundSimulator />
+      </Section>
+
+      {/* ── Equity-Labor ──────────────────────────────────────────────────── */}
+      <Section title="Equity-Labor (Multiway)">
+        <EquityLab />
       </Section>
 
       {/* ── Spot-Analyse ──────────────────────────────────────────────────── */}

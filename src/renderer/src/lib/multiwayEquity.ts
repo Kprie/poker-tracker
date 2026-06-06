@@ -70,3 +70,69 @@ export function multiwayEquity(
   for (let i = 0; i < n; i++) equity[i] /= iterations
   return equity
 }
+
+/** Verteilt einen Showdown auf einem fertigen 5-Karten-Board an die Gewinner. */
+function tallyShowdown(hands: readonly [Card, Card][], board: readonly Card[], equity: number[]): void {
+  const scores = scoreHandsOnBoard(hands, board)
+  let best = scores[0], winners = 1
+  for (let i = 1; i < scores.length; i++) {
+    if (scores[i] > best) { best = scores[i]; winners = 1 }
+    else if (scores[i] === best) winners++
+  }
+  const share = 1 / winners
+  for (let i = 0; i < scores.length; i++) if (scores[i] === best) equity[i] += share
+}
+
+/**
+ * Multiway-Equity mit (Teil-)Board. Board-Länge → Methode:
+ *   5 (River):  direkte Auswertung
+ *   4 (Turn):   exakte Enumeration der Riverkarte
+ *   3 (Flop):   exakte Enumeration Turn+River (C(rest,2))
+ *   0–2:        Monte Carlo (`iterations` Runouts)
+ * Summe der Equities = 1.0.
+ */
+export function multiwayEquityBoard(
+  hands: readonly [Card, Card][],
+  board: readonly Card[],
+  iterations = 5000,
+): number[] {
+  const n = hands.length
+  const equity = new Array<number>(n).fill(0)
+  if (n === 0) return equity
+
+  const blocked = new Set<Card>(board)
+  for (const [a, b] of hands) { blocked.add(a); blocked.add(b) }
+  const avail = FULL_DECK.filter(c => !blocked.has(c))
+  const need = 5 - board.length
+
+  if (need <= 0) {
+    tallyShowdown(hands, board.slice(0, 5), equity)
+    return equity  // bereits normiert (Summe 1)
+  }
+
+  if (need === 1) {
+    for (const c of avail) tallyShowdown(hands, [...board, c], equity)
+    for (let i = 0; i < n; i++) equity[i] /= avail.length
+    return equity
+  }
+
+  if (need === 2) {
+    let total = 0
+    for (let i = 0; i < avail.length; i++) {
+      for (let j = i + 1; j < avail.length; j++) {
+        tallyShowdown(hands, [...board, avail[i], avail[j]], equity)
+        total++
+      }
+    }
+    for (let i = 0; i < n; i++) equity[i] /= total
+    return equity
+  }
+
+  // need ≥ 3: Monte Carlo
+  for (let it = 0; it < iterations; it++) {
+    const drawn = drawRandom(avail, need)
+    tallyShowdown(hands, [...board, ...drawn], equity)
+  }
+  for (let i = 0; i < n; i++) equity[i] /= iterations
+  return equity
+}
