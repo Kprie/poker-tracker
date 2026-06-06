@@ -172,6 +172,91 @@ export function multiwaySeatEv(input: MultiwaySeatInput): number {
   return sum / iterations
 }
 
+/**
+ * Erwartete ICM-$ **aller** Sitze (Monte Carlo) gegeben ein Strategie-Profil ohne festen
+ * Ziel-Sitz: commit-Sitze werden aus ihrer Range gesampelt, call-Sitze committen mit ihrer
+ * Frequenz, fold/null-Sitze geben ihren Post als Dead Money. Genutzt für Knoten-
+ * Erwartungswerte und Fold-Baselines im rekursiven Solver.
+ */
+export function simulateAllSeatsIcm(
+  stacks: number[],
+  payouts: number[],
+  posts: number[],
+  seats: (SeatMode | null)[],
+  iterations = 2000,
+): number[] {
+  const n = stacks.length
+  const samplers: (RangeSampler | null)[] = seats.map(s =>
+    s && s.mode === 'commit' ? buildSampler(s.range, new Set()) : null,
+  )
+  const out = new Array<number>(n).fill(0)
+
+  for (let it = 0; it < iterations; it++) {
+    let avail = FULL_DECK
+    const used = new Set<Card>()
+    const committedSeats: number[] = []
+    const committedHands: [Card, Card][] = []
+
+    for (let j = 0; j < n; j++) {
+      const s = seats[j]
+      if (!s || s.mode === 'fold') continue
+      if (s.mode === 'commit') {
+        const hand = sampleCommit(samplers[j]!, used)
+        if (!hand) continue
+        committedSeats.push(j); committedHands.push(hand)
+        used.add(hand[0]); used.add(hand[1])
+        avail = avail.filter(c => c !== hand[0] && c !== hand[1])
+      } else {
+        const [c1, c2] = drawRandom(avail, 2)
+        const freq = s.range.get(comboToHandId(c1, c2)) ?? 0
+        if (freq > 0 && Math.random() < freq) {
+          committedSeats.push(j); committedHands.push([c1, c2])
+          used.add(c1); used.add(c2)
+          avail = avail.filter(c => c !== c1 && c !== c2)
+        }
+      }
+    }
+
+    const result = new Array<number>(n)
+    const committedSet = new Set(committedSeats)
+    for (let i = 0; i < n; i++) result[i] = committedSet.has(i) ? 0 : stacks[i] - posts[i]
+
+    if (committedSeats.length === 0) {
+      // Niemand committed (alle folden) — reine Post-Konfiguration, kein Showdown.
+      for (let i = 0; i < n; i++) out[i] += computeIcmEquities(result, payouts)[i]
+      continue
+    }
+
+    const board = drawRandom(avail, 5)
+    const scores = scoreHandsOnBoard(committedHands, board)
+    const contributions = new Array<number>(n)
+    for (let i = 0; i < n; i++) contributions[i] = committedSet.has(i) ? stacks[i] : posts[i]
+    const layers = buildSidePots(contributions)
+    const scoreIdxOf = new Map<number, number>()
+    committedSeats.forEach((seat, k) => scoreIdxOf.set(seat, k))
+
+    for (const layer of layers) {
+      let best = -1
+      let winners: number[] = []
+      for (const seat of layer.eligible) {
+        if (!committedSet.has(seat)) continue
+        const sc = scores[scoreIdxOf.get(seat)!]
+        if (sc > best) { best = sc; winners = [seat] }
+        else if (sc === best) winners.push(seat)
+      }
+      if (winners.length === 0) continue
+      const share = layer.amount / winners.length
+      for (const w of winners) result[w] += share
+    }
+
+    const eq = computeIcmEquities(result, payouts)
+    for (let i = 0; i < n; i++) out[i] += eq[i]
+  }
+
+  for (let i = 0; i < n; i++) out[i] /= iterations
+  return out
+}
+
 export interface MultiwayShoveInput {
   stacks: number[]
   payouts: number[]

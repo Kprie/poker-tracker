@@ -17,7 +17,8 @@
     "verify:sidepots": "node scripts/run-verify.mjs scripts/verify-sidepots.mjs",
     "verify:multiway": "node scripts/run-verify.mjs scripts/verify-multiway.mjs",
     "verify:multiwayev": "node scripts/run-verify.mjs scripts/verify-multiwayev.mjs",
-    "verify": "npm run verify:icm && npm run verify:b6 && npm run verify:sidepots && npm run verify:multiway && npm run verify:multiwayev"
+    "verify:multiwaysolver": "node scripts/run-verify.mjs scripts/verify-multiwaysolver.mjs",
+    "verify": "npm run verify:icm && npm run verify:b6 && npm run verify:sidepots && npm run verify:multiway && npm run verify:multiwayev && npm run verify:multiwaysolver"
   },
   "dependencies": {
     "@fontsource-variable/geist": "^5.2.9",
