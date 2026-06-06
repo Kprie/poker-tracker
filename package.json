@@ -14,7 +14,9 @@
     "typecheck": "npm run typecheck:node && npm run typecheck:web",
     "verify:icm": "node scripts/run-verify.mjs scripts/verify-icm.mjs",
     "verify:b6": "node scripts/run-verify.mjs scripts/verify-b6.mjs",
-    "verify": "npm run verify:icm && npm run verify:b6"
+    "verify:sidepots": "node scripts/run-verify.mjs scripts/verify-sidepots.mjs",
+    "verify:multiway": "node scripts/run-verify.mjs scripts/verify-multiway.mjs",
+    "verify": "npm run verify:icm && npm run verify:b6 && npm run verify:sidepots && npm run verify:multiway"
   },
   "dependencies": {
     "@fontsource-variable/geist": "^5.2.9",
