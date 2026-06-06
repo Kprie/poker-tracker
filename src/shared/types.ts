@@ -77,6 +77,28 @@ export interface HandStatsAgg {
   aggActions: number
   /** Postflop passive calls. */
   callActions: number
+
+  // ── Erweiterte Aktionsstatistiken (deterministisch aus Aktionssequenzen) ──
+  /** Hände, in denen Hero preflop ein 3-Bet vor sich hatte (konnte 4-betten). */
+  fourBetOpp: number
+  /** Hände, in denen Hero preflop 4-bet (Re-Raise auf ein 3-Bet). */
+  fourBet: number
+  /** Hände, in denen Hero preflop raiste und danach ein Re-Raise (3-Bet) vor sich hatte. */
+  foldTo3BetOpp: number
+  /** Hände, in denen Hero auf das 3-Bet foldete. */
+  foldTo3Bet: number
+  /** Hände, in denen Hero Preflop-Aggressor war und den Flop sah (C-Bet-Gelegenheit). */
+  cbetFlopOpp: number
+  /** Hände, in denen Hero den Flop ge-c-bettet hat. */
+  cbetFlop: number
+  /** Hände, in denen Hero (nicht PFA) am Flop eine C-Bet vor sich hatte. */
+  foldToCbetOpp: number
+  /** Hände, in denen Hero die C-Bet am Flop foldete. */
+  foldToCbet: number
+  /** Hände, in denen Hero am Flop checkte und danach eine Bet vor sich hatte (Check-Raise-Gelegenheit). */
+  checkRaiseFlopOpp: number
+  /** Hände, in denen Hero am Flop check-raiste. */
+  checkRaiseFlop: number
 }
 
 export interface ImportResult {

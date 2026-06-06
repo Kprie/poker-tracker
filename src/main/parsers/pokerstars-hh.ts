@@ -28,6 +28,16 @@ export interface HandResult {
   wonHand: number
   aggActions: number
   callActions: number
+  fourBetOpp: number
+  fourBet: number
+  foldTo3BetOpp: number
+  foldTo3Bet: number
+  cbetFlopOpp: number
+  cbetFlop: number
+  foldToCbetOpp: number
+  foldToCbet: number
+  checkRaiseFlopOpp: number
+  checkRaiseFlop: number
 }
 
 export function isPokerStarsHandHistory(content: string): boolean {
@@ -116,35 +126,78 @@ function parseHand(block: string): HandResult | null {
   const summary = iSummary >= 0 ? block.slice(iSummary) : ''
   const postflop = flop + turn + river
 
-  // --- Preflop: VPIP / PFR / 3-bet ---
-  let vpip = 0
-  let pfr = 0
-  let threeBetOpp = 0
-  let threeBet = 0
+  // --- Preflop: VPIP / PFR / 3-bet / 4-bet / fold-to-3-bet ---
+  // raisesSeen zählt Raises VOR der jeweils verarbeiteten Zeile (Inkrement am Ende).
+  // pfaIsHero = Preflop-Aggressor (letzter Raiser) ist Hero.
+  let vpip = 0, pfr = 0, threeBetOpp = 0, threeBet = 0
+  let fourBetOpp = 0, fourBet = 0, foldTo3BetOpp = 0, foldTo3Bet = 0
   let raisesSeen = 0
-  let heroProcessed = false
+  let heroFirstProcessed = false
   let heroFoldedPreflop = false
-  // raisesSeen wird am Ende jeder Iteration inkrementiert. Da Hero-Verarbeitung
-  // nur bei heroLine=true erfolgt und raisesSeen++ danach kommt, ist bei Heros
-  // eigener Raise-Zeile raisesSeen noch der Wert VOR Heros Raise — korrekt.
+  let heroRaiseRaisesBefore = -1  // raisesSeen, als Hero (zuerst) selbst raiste
+  let pfaIsHero = false
   for (const line of preflop.split('\n')) {
     const verb = classifyVerb(line)
     if (!verb) continue
     const heroLine = isHero(line)
-    if (heroLine && !heroProcessed && verb !== 'post') {
-      if (raisesSeen >= 1) threeBetOpp = 1
-      if (verb === 'call' || verb === 'bet' || verb === 'raise') vpip = 1
-      if (verb === 'raise') {
-        pfr = 1
-        if (raisesSeen >= 1) threeBet = 1
+    if (heroLine && verb !== 'post') {
+      if (!heroFirstProcessed) {
+        if (raisesSeen >= 1) threeBetOpp = 1
+        if (verb === 'call' || verb === 'bet' || verb === 'raise') vpip = 1
+        if (verb === 'raise') { pfr = 1; if (raisesSeen >= 1) threeBet = 1 }
+        if (verb === 'fold') heroFoldedPreflop = true
+        heroFirstProcessed = true
+      } else if (verb === 'fold') {
+        heroFoldedPreflop = true
       }
-      if (verb === 'fold') heroFoldedPreflop = true
-      heroProcessed = true
+      // 4-Bet-Gelegenheit: Hero handelt mit ≥2 vorherigen Raises (ein 3-Bet vor sich).
+      if (raisesSeen >= 2) {
+        fourBetOpp = 1
+        if (verb === 'raise') fourBet = 1
+      }
+      // Fold-to-3-Bet: Hero hatte selbst geraist, danach kam ein weiterer Raise.
+      if (heroRaiseRaisesBefore >= 0 && raisesSeen > heroRaiseRaisesBefore + 1) {
+        foldTo3BetOpp = 1
+        if (verb === 'fold') foldTo3Bet = 1
+      }
+      if (verb === 'raise' && heroRaiseRaisesBefore < 0) heroRaiseRaisesBefore = raisesSeen
     }
-    if (verb === 'raise') raisesSeen++
+    if (verb === 'raise') { raisesSeen++; pfaIsHero = heroLine }
   }
 
   const sawFlop = iFlop >= 0 && !heroFoldedPreflop ? 1 : 0
+
+  // --- Flop: C-Bet / Fold-to-C-Bet / Check-Raise ---
+  let cbetFlopOpp = 0, cbetFlop = 0, foldToCbetOpp = 0, foldToCbet = 0
+  let checkRaiseFlopOpp = 0, checkRaiseFlop = 0
+  if (iFlop >= 0 && !heroFoldedPreflop) {
+    if (pfaIsHero) cbetFlopOpp = 1
+    let betSeen = false
+    let firstAggressorIsHero: boolean | null = null
+    let heroChecked = false
+    let heroFacedBet = false
+    let heroBetDone = false
+    for (const line of flop.split('\n')) {
+      const verb = classifyVerb(line)
+      if (!verb || verb === 'post') continue
+      const heroLine = isHero(line)
+      if (heroLine) {
+        if (verb === 'bet' && !betSeen && pfaIsHero && !heroBetDone) { cbetFlop = 1; heroBetDone = true }
+        if (!pfaIsHero && betSeen && firstAggressorIsHero === false && !heroFacedBet) {
+          foldToCbetOpp = 1
+          if (verb === 'fold') foldToCbet = 1
+          heroFacedBet = true
+        }
+        if (verb === 'raise' && heroChecked) checkRaiseFlop = 1
+        if (verb === 'check') heroChecked = true
+      }
+      if (verb === 'bet' || verb === 'raise') {
+        if (!betSeen) firstAggressorIsHero = heroLine
+        betSeen = true
+      }
+    }
+    if (heroChecked && betSeen && firstAggressorIsHero === false) checkRaiseFlopOpp = 1
+  }
 
   // --- Postflop aggression ---
   let aggActions = 0
@@ -193,7 +246,17 @@ function parseHand(block: string): HandResult | null {
     wonSd,
     wonHand,
     aggActions,
-    callActions
+    callActions,
+    fourBetOpp,
+    fourBet,
+    foldTo3BetOpp,
+    foldTo3Bet,
+    cbetFlopOpp,
+    cbetFlop,
+    foldToCbetOpp,
+    foldToCbet,
+    checkRaiseFlopOpp,
+    checkRaiseFlop
   }
 }
 
@@ -268,7 +331,17 @@ export function aggregateHands(allHands: HandResult[]): Tournament[] {
       wonSd: sum(list, (h) => h.wonSd),
       wonHand: sum(list, (h) => h.wonHand),
       aggActions: sum(list, (h) => h.aggActions),
-      callActions: sum(list, (h) => h.callActions)
+      callActions: sum(list, (h) => h.callActions),
+      fourBetOpp: sum(list, (h) => h.fourBetOpp),
+      fourBet: sum(list, (h) => h.fourBet),
+      foldTo3BetOpp: sum(list, (h) => h.foldTo3BetOpp),
+      foldTo3Bet: sum(list, (h) => h.foldTo3Bet),
+      cbetFlopOpp: sum(list, (h) => h.cbetFlopOpp),
+      cbetFlop: sum(list, (h) => h.cbetFlop),
+      foldToCbetOpp: sum(list, (h) => h.foldToCbetOpp),
+      foldToCbet: sum(list, (h) => h.foldToCbet),
+      checkRaiseFlopOpp: sum(list, (h) => h.checkRaiseFlopOpp),
+      checkRaiseFlop: sum(list, (h) => h.checkRaiseFlop)
     }
     const startDate = list.map((h) => h.startDate).sort()[0]
     const finishPlace = list.map((h) => h.finishPlace).find((p) => p != null) ?? null

@@ -74,6 +74,20 @@ export interface PlayStyle {
   afq: number
   wtsd: number
   wonSd: number
+  // Erweiterte Aktionsstatistiken (Rate + Gelegenheits-Anzahl für Sample-Size).
+  threeBetOpp: number
+  fourBet: number
+  fourBetOpp: number
+  foldTo3Bet: number
+  foldTo3BetOpp: number
+  cbet: number
+  cbetOpp: number
+  foldToCbet: number
+  foldToCbetOpp: number
+  checkRaise: number
+  checkRaiseOpp: number
+  /** Postflop-Aktionen gesamt (Aggression-Sample). */
+  postflopActions: number
   /** Tournaments that contributed hand stats. */
   tournaments: number
 }
@@ -91,6 +105,16 @@ export function computePlayStyle(rows: Tournament[]): PlayStyle {
   const sawFlop = sum(stats, (s) => s.sawFlop)
   const agg = sum(stats, (s) => s.aggActions)
   const calls = sum(stats, (s) => s.callActions)
+  const fourBet = sum(stats, (s) => s.fourBet)
+  const fourBetOpp = sum(stats, (s) => s.fourBetOpp)
+  const foldTo3Bet = sum(stats, (s) => s.foldTo3Bet)
+  const foldTo3BetOpp = sum(stats, (s) => s.foldTo3BetOpp)
+  const cbet = sum(stats, (s) => s.cbetFlop)
+  const cbetOpp = sum(stats, (s) => s.cbetFlopOpp)
+  const foldToCbet = sum(stats, (s) => s.foldToCbet)
+  const foldToCbetOpp = sum(stats, (s) => s.foldToCbetOpp)
+  const checkRaise = sum(stats, (s) => s.checkRaiseFlop)
+  const checkRaiseOpp = sum(stats, (s) => s.checkRaiseFlopOpp)
   return {
     hands,
     vpip: hands ? vpip / hands : 0,
@@ -100,6 +124,18 @@ export function computePlayStyle(rows: Tournament[]): PlayStyle {
     afq: agg + calls ? agg / (agg + calls) : 0,
     wtsd: sawFlop ? wtsd / sawFlop : 0,
     wonSd: wtsd ? wonSd / wtsd : 0,
+    threeBetOpp,
+    fourBet: fourBetOpp ? fourBet / fourBetOpp : 0,
+    fourBetOpp,
+    foldTo3Bet: foldTo3BetOpp ? foldTo3Bet / foldTo3BetOpp : 0,
+    foldTo3BetOpp,
+    cbet: cbetOpp ? cbet / cbetOpp : 0,
+    cbetOpp,
+    foldToCbet: foldToCbetOpp ? foldToCbet / foldToCbetOpp : 0,
+    foldToCbetOpp,
+    checkRaise: checkRaiseOpp ? checkRaise / checkRaiseOpp : 0,
+    checkRaiseOpp,
+    postflopActions: agg + calls,
     tournaments: stats.length
   }
 }

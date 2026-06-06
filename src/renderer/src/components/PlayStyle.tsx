@@ -17,16 +17,37 @@ function styleLabel(vpip: number, pfr: number): string {
   return `${looseness}-${passivity}`
 }
 
+/** Rate-Anzeige mit Sample-Size-Warnung: unter `min` Gelegenheiten als unsicher markiert. */
+function rateTile(label: string, rate: number, opp: number, min: number): { label: string; value: string; sub: string } {
+  if (opp === 0) return { label, value: '—', sub: 'keine Gelegenheiten' }
+  const low = opp < min
+  return {
+    label,
+    value: pct(rate),
+    sub: low ? `n=${opp} · wenig Daten` : `n=${opp}`,
+  }
+}
+
 export function PlayStyle({ s }: Props): JSX.Element | null {
   if (s.hands === 0) return null
 
-  const cards: { label: string; value: string; hint?: string }[] = [
-    { label: 'VPIP', value: pct(s.vpip), hint: 'freiwillig im Pot' },
-    { label: 'PFR', value: pct(s.pfr), hint: 'preflop erhöht' },
-    { label: '3-Bet', value: pct(s.threeBet), hint: 'von Gelegenheiten' },
-    { label: 'Aggression (AF)', value: s.af.toFixed(2), hint: '(Bet+Raise)/Call' },
-    { label: 'WTSD', value: pct(s.wtsd), hint: 'bis zum Showdown' },
-    { label: 'W$SD', value: pct(s.wonSd), hint: 'am Showdown gewonnen' }
+  const lowHands = s.hands < 500
+
+  const preflop = [
+    { label: 'VPIP', value: pct(s.vpip), sub: 'freiwillig im Pot' },
+    { label: 'PFR', value: pct(s.pfr), sub: 'preflop erhöht' },
+    rateTile('3-Bet', s.threeBet, s.threeBetOpp, 100),
+    rateTile('4-Bet', s.fourBet, s.fourBetOpp, 30),
+    rateTile('Fold vs 3-Bet', s.foldTo3Bet, s.foldTo3BetOpp, 30),
+    { label: 'Aggression (AF)', value: s.af.toFixed(2), sub: '(Bet+Raise)/Call' },
+  ]
+
+  const postflop = [
+    rateTile('C-Bet Flop', s.cbet, s.cbetOpp, 50),
+    rateTile('Fold vs C-Bet', s.foldToCbet, s.foldToCbetOpp, 50),
+    rateTile('Check-Raise Flop', s.checkRaise, s.checkRaiseOpp, 30),
+    { label: 'WTSD', value: pct(s.wtsd), sub: 'bis zum Showdown' },
+    { label: 'W$SD', value: pct(s.wonSd), sub: 'am Showdown gewonnen' },
   ]
 
   return (
@@ -51,10 +72,16 @@ export function PlayStyle({ s }: Props): JSX.Element | null {
         </span>
       }
     >
+      {lowHands && (
+        <p className="mb-3 text-xs text-[#f0a500]">
+          Kleines Sample ({s.hands.toLocaleString('de-DE')} Hände) — Werte sind statistisch wenig belastbar.
+        </p>
+      )}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
-        {cards.map((c) => (
-          <KpiTile key={c.label} label={c.label} value={c.value} sub={c.hint} />
-        ))}
+        {preflop.map((c) => <KpiTile key={c.label} label={c.label} value={c.value} sub={c.sub} />)}
+      </div>
+      <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+        {postflop.map((c) => <KpiTile key={c.label} label={c.label} value={c.value} sub={c.sub} />)}
       </div>
     </Section>
   )
