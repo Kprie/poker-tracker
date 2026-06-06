@@ -1,4 +1,5 @@
 import { computeIcmEquities } from './icm'
+import { icmScenarioConfigs, VILLAIN_COMBOS } from './equity'
 import { lookupEquityVsRange } from './equityTable'
 import type { HandId } from '../data/pushFoldData'
 import { ALL_HAND_IDS } from '../data/pushFoldData'
@@ -38,8 +39,18 @@ function rangeWeight(range: Map<HandId, number>): number {
   return total
 }
 
-/** Verfügbare Villain-Kombos nach Abzug der 2 Hero-Karten. */
-const VILLAIN_COMBOS = 1225  // C(50,2): alle Villain-Combos nach Abzug der 2 Hero-Karten
+/**
+ * Standard-Blind-/Ante-Struktur: die beiden letzten Sitze posten SB/BB, alle Ante.
+ * Sitz-indiziert (nicht rollen-indiziert). Identisch zur SpotAnalyzer-Logik.
+ */
+export function defaultPosts(n: number, bbSize: number, ante: number): number[] {
+  const posts = Array.from({ length: n }, () => ante)
+  const sbSeat = n - 2
+  const bbSeat = n - 1
+  if (sbSeat >= 0) posts[sbSeat] += Math.round(bbSize * 0.5)
+  if (bbSeat >= 0) posts[bbSeat] += bbSize
+  return posts
+}
 
 // ─── ICM-Szenario-Berechnung ──────────────────────────────────────────────────
 
@@ -55,80 +66,32 @@ export interface IcmDeltas {
 }
 
 /**
- * ICM-$-Deltas der Push-Knoten **relativ zum Fold-Knoten**.
+ * ICM-$-Deltas der Push-Knoten **relativ zum Fold-Knoten** — chip-erhaltend für
+ * jede Spielerzahl. Nutzt {@link icmScenarioConfigs} aus equity.ts als einzige
+ * Quelle der Stack-Konfigurationen (identisches Modell wie computeIcmScenarios).
  *
- * HU (n=2): chip-erhaltendes, exaktes Modell (B6.1).
- *   Konvention: Sitz 0 = SB, Sitz 1 = BB (SpotAnalyzer-Setup). Stacks sind
- *   Pre-Posting-Werte; Posts werden intern abgezogen. Der Entscheider ist
- *   `heroIdx`, der Gegner `callerIdx` — die Funktion wird vom Solver auch mit
- *   vertauschten Indizes (BB-Call-Entscheidung) aufgerufen, daher sind Posts
- *   **sitz-indiziert**, nicht rollen-indiziert.
- *
- * n>2: bisheriges (vereinfachtes, nicht chip-erhaltendes) Modell — wird in
- *   Phase B6.4 durch das multiway-exakte Modell mit Side-Pots und rekursivem
- *   Fold-Baum ersetzt. Siehe plans/01-b6-ev-model.md.
+ * Konvention: Posts sind **sitz-indiziert** (Blind + Ante je Sitz), Stacks sind
+ * Pre-Posting. Der Entscheider ist `heroIdx`, der Gegner `callerIdx` — die Funktion
+ * wird vom Solver auch mit vertauschten Indizes (BB-Call-Entscheidung) aufgerufen.
+ * Für n>2 gelten alle übrigen Sitze als bereits gefoldet (ihre Posts = Dead Money).
  */
 export function computeIcmDeltas(
   stacks: number[],
   payouts: number[],
   heroIdx: number,
   callerIdx: number,
-  bbSize: number,
-  ante: number,
+  posts: number[],
 ): IcmDeltas {
-  const n = stacks.length
-
-  if (n === 2) {
-    const posts = [bbSize * 0.5 + ante, bbSize + ante]  // [SB(Sitz0), BB(Sitz1)]
-    const dm = heroIdx    // Entscheider
-    const op = callerIdx  // Gegner
-    const eff = Math.min(stacks[dm], stacks[op])
-    const cfg = (dmStack: number, opStack: number): number[] => {
-      const c = [...stacks]
-      c[dm] = dmStack
-      c[op] = opStack
-      return c
-    }
-    // Fold: Entscheider gibt seinen eigenen Post auf, Gegner gewinnt ihn.
-    const foldEq = computeIcmEquities(cfg(stacks[dm] - posts[dm], stacks[op] + posts[dm]), payouts)[dm]
-    // Shove + Gegner foldet: Gegner verliert seinen Post an den Entscheider.
-    const winPotEq = computeIcmEquities(cfg(stacks[dm] + posts[op], stacks[op] - posts[op]), payouts)[dm]
-    // Shove + Call: effektiver Stack-Swap (Blinds/Antes stecken bereits in den Stacks).
-    const winCallEq = computeIcmEquities(cfg(stacks[dm] + eff, stacks[op] - eff), payouts)[dm]
-    const loseCallEq = computeIcmEquities(cfg(stacks[dm] - eff, stacks[op] + eff), payouts)[dm]
-
-    return {
-      winPot: winPotEq - foldEq,
-      winCall: winCallEq - foldEq,
-      loseCall: loseCallEq - foldEq,
-      currentEq: foldEq,
-    }
-  }
-
-  // ── n > 2: vereinfachtes Alt-Modell (B6.4 ersetzt dies, siehe plans/01) ──
-  const pot = Math.round(bbSize * 1.5) + ante * n
-  const currentEq = computeIcmEquities(stacks, payouts)[heroIdx]
-
-  const sWinPot = [...stacks]
-  sWinPot[heroIdx] += pot
-  const eqWinPot = computeIcmEquities(sWinPot, payouts)[heroIdx]
-
-  const eff = Math.min(stacks[heroIdx], stacks[callerIdx])
-  const sWinCall = [...stacks]
-  sWinCall[heroIdx] = stacks[heroIdx] + eff + pot
-  sWinCall[callerIdx] = Math.max(0, stacks[callerIdx] - eff)
-  const eqWinCall = computeIcmEquities(sWinCall, payouts)[heroIdx]
-
-  const sLoseCall = [...stacks]
-  sLoseCall[callerIdx] = stacks[callerIdx] + eff + pot
-  sLoseCall[heroIdx] = Math.max(0, stacks[heroIdx] - eff)
-  const eqLoseCall = computeIcmEquities(sLoseCall, payouts)[heroIdx]
-
+  const d = icmScenarioConfigs(stacks, posts, heroIdx, callerIdx)
+  const foldEq = computeIcmEquities(d.fold, payouts)[heroIdx]
+  const winPotEq = computeIcmEquities(d.winPot, payouts)[heroIdx]
+  const winCallEq = computeIcmEquities(d.winCall, payouts)[heroIdx]
+  const loseCallEq = computeIcmEquities(d.loseCall, payouts)[heroIdx]
   return {
-    winPot: eqWinPot - currentEq,
-    winCall: eqWinCall - currentEq,
-    loseCall: eqLoseCall - currentEq,
-    currentEq,
+    winPot: winPotEq - foldEq,
+    winCall: winCallEq - foldEq,
+    loseCall: loseCallEq - foldEq,
+    currentEq: foldEq,
   }
 }
 
@@ -140,6 +103,8 @@ export interface NashInput {
   payouts: number[]
   bbSize: number
   ante: number
+  /** Geposteter Blind+Ante je Sitz. Default: SB/BB auf den letzten zwei Sitzen. */
+  posts?: number[]
   /** Index des wahrscheinlichsten Callers (typisch BB = Index 1). */
   callerIdx?: number
   maxIterations?: number
@@ -172,9 +137,10 @@ export function solveNash(input: NashInput): NashResult {
   } = input
 
   const heroIdx = 0
-  const deltas = computeIcmDeltas(stacks, payouts, heroIdx, callerIdx, bbSize, ante)
+  const posts = input.posts ?? defaultPosts(stacks.length, bbSize, ante)
+  const deltas = computeIcmDeltas(stacks, payouts, heroIdx, callerIdx, posts)
   // ICM aus Villain-Sicht (Hero = callerIdx, Villain = heroIdx für den Call-Schritt)
-  const villainDeltas = computeIcmDeltas(stacks, payouts, callerIdx, heroIdx, bbSize, ante)
+  const villainDeltas = computeIcmDeltas(stacks, payouts, callerIdx, heroIdx, posts)
 
   const totalCallCombos = VILLAIN_COMBOS
 

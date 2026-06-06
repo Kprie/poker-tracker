@@ -11,6 +11,12 @@ export interface RangeCombo {
 }
 
 /**
+ * Verfügbare Villain-Combos nach Abzug der 2 Hero-Karten: C(50,2) = 1225.
+ * Einheitliche Bezugsgröße für alle P(call)-/Combo-Anteil-Berechnungen.
+ */
+export const VILLAIN_COMBOS = 1225
+
+/**
  * Baut die Calling-Range eines Villains aus einem PushFoldSpot.
  * Hände mit ev > 0 sind im Call enthalten; Mixed-Strategy-Hände mit freq ≠ null anteilig.
  * hero_cards werden als blockiert ausgeschlossen.
@@ -66,7 +72,7 @@ export function computeEquityMC(
 
   // callFraction: gewichtete Combo-Summe / verfügbare Villain-Combos (C(50,2)=1225 nach Hero-Blocking)
   const weightedCombos = range.reduce((s, r) => s + r.weight, 0)
-  const callFraction = Math.min(1, weightedCombos / 1225)
+  const callFraction = Math.min(1, weightedCombos / VILLAIN_COMBOS)
 
   // Deck ohne Hero-Karten
   const deckWithoutHero = FULL_DECK.filter(c => c !== heroCards[0] && c !== heroCards[1])
@@ -114,66 +120,70 @@ export interface IcmScenarios {
 }
 
 /**
- * Berechnet ICM-Equity für alle 4 Push-Szenarien.
+ * Berechnet ICM-Equity für alle 4 Push-Szenarien — chip-erhaltend für **jede**
+ * Spielerzahl. Generalisiert das exakte HU-Modell (B6.1) um Dead Money: alle
+ * Sitze außer Hero und dem betrachteten Caller gelten als bereits gefoldet, ihre
+ * Posts liegen als Dead Money im Pot und gehen an den jeweiligen Gewinner.
  *
- * @param stacks      Chip-Stacks aller Spieler (Index 0 = Hero)
- * @param payouts     Auszahlungen
- * @param bbSize      Wert eines Big Blinds in Chips
- * @param ante        Ante pro Spieler (0 = kein Ante)
- * @param callerIdx   Index des wahrscheinlichsten Callers (typischerweise BB)
+ * Konvention: Index 0 = Hero. Posts sind sitz-indiziert (Blind + Ante je Sitz);
+ * die Stacks sind Pre-Posting-Werte. Bei HU (n=2, dead=0) identisch zum exakten
+ * Stack-Swap-Modell. Für n>2 ist dies das chip-erhaltende Einzel-Caller-Modell;
+ * die volle Multiway-Verteilung liefert der Solver (Nash-Ranges / EV-Tabelle).
+ *
+ * @param stacks    Chip-Stacks aller Spieler, Pre-Posting (Index 0 = Hero)
+ * @param payouts   Auszahlungen
+ * @param posts     Geposteter Blind+Ante je Sitz (≥0)
+ * @param callerIdx Index des betrachteten Callers (typischerweise BB)
  */
 export function computeIcmScenarios(
   stacks: number[],
   payouts: number[],
-  bbSize: number,
-  ante: number,
+  posts: number[],
   callerIdx: number,
   computeEquities: (s: number[], p: number[]) => number[],
 ): IcmScenarios {
-  const n = stacks.length
-  const heroIdx = 0
-
-  if (n === 2) {
-    // HU exakt & chip-erhaltend (B6.1). Sitz 0 = SB (=Hero), Sitz 1 = BB.
-    // Stacks sind Pre-Posting; Posts werden intern verrechnet.
-    const posts = [bbSize * 0.5 + ante, bbSize + ante]  // [SB, BB]
-    const op = callerIdx
-    const eff = Math.min(stacks[heroIdx], stacks[op])
-    const cfg = (h: number, o: number): number[] => {
-      const c = [...stacks]
-      c[heroIdx] = h
-      c[op] = o
-      return c
-    }
-    // Fold: Hero gibt SB-Post auf, Gegner gewinnt ihn.
-    const fold = computeEquities(cfg(stacks[heroIdx] - posts[heroIdx], stacks[op] + posts[heroIdx]), payouts)[heroIdx]
-    // Push, Gegner foldet: Gegner verliert seinen Post.
-    const pushWinBlinds = computeEquities(cfg(stacks[heroIdx] + posts[op], stacks[op] - posts[op]), payouts)[heroIdx]
-    // Push + Call: effektiver Stack-Swap (Blinds/Antes stecken bereits in den Stacks).
-    const pushCallWin = computeEquities(cfg(stacks[heroIdx] + eff, stacks[op] - eff), payouts)[heroIdx]
-    const pushCallLose = computeEquities(cfg(stacks[heroIdx] - eff, stacks[op] + eff), payouts)[heroIdx]
-    return { fold, pushWinBlinds, pushCallWin, pushCallLose }
+  const d = icmScenarioConfigs(stacks, posts, 0, callerIdx)
+  return {
+    fold: computeEquities(d.fold, payouts)[0],
+    pushWinBlinds: computeEquities(d.winPot, payouts)[0],
+    pushCallWin: computeEquities(d.winCall, payouts)[0],
+    pushCallLose: computeEquities(d.loseCall, payouts)[0],
   }
+}
 
-  // ── n > 2: vereinfachtes Alt-Modell (B6.4 ersetzt dies, siehe plans/01) ──
-  const pot = Math.round(bbSize * 1.5) + ante * n
-
-  const fold = computeEquities(stacks, payouts)[heroIdx]
-
-  const sB = [...stacks]
-  sB[heroIdx] += pot
-  const pushWinBlinds = computeEquities(sB, payouts)[heroIdx]
-
-  const effectivePot = Math.min(stacks[heroIdx], stacks[callerIdx])
-  const sC = [...stacks]
-  sC[heroIdx] = stacks[heroIdx] + effectivePot + pot
-  sC[callerIdx] = Math.max(0, stacks[callerIdx] - effectivePot)
-  const pushCallWin = computeEquities(sC, payouts)[heroIdx]
-
-  const sD = [...stacks]
-  sD[callerIdx] = stacks[callerIdx] + effectivePot + pot
-  sD[heroIdx] = Math.max(0, stacks[heroIdx] - effectivePot)
-  const pushCallLose = computeEquities(sD, payouts)[heroIdx]
-
-  return { fold, pushWinBlinds, pushCallWin, pushCallLose }
+/**
+ * Baut die vier chip-erhaltenden Stack-Konfigurationen für die Push/Fold-Szenarien
+ * aus Sicht von `dm` (Entscheider) gegen `op` (Caller). Gemeinsame Quelle für
+ * {@link computeIcmScenarios} und computeIcmDeltas (nashSolver) — garantiert ein
+ * einziges, konsistentes ICM-Modell.
+ */
+export function icmScenarioConfigs(
+  stacks: number[],
+  posts: number[],
+  dm: number,
+  op: number,
+): { fold: number[]; winPot: number[]; winCall: number[]; loseCall: number[] } {
+  const eff = Math.min(stacks[dm], stacks[op])
+  // Dead Money: Posts aller übrigen (bereits gefoldeten) Sitze.
+  let dead = 0
+  const base = stacks.slice()
+  for (let i = 0; i < stacks.length; i++) {
+    if (i !== dm && i !== op) { dead += posts[i]; base[i] = stacks[i] - posts[i] }
+  }
+  const cfg = (h: number, o: number): number[] => {
+    const c = base.slice()
+    c[dm] = h
+    c[op] = o
+    return c
+  }
+  return {
+    // Fold: Entscheider gibt seinen Post auf; Caller gewinnt Entscheider-Post + Dead Money.
+    fold: cfg(stacks[dm] - posts[dm], stacks[op] + posts[dm] + dead),
+    // Push, alle folden: Entscheider gewinnt Caller-Post + Dead Money.
+    winPot: cfg(stacks[dm] + posts[op] + dead, stacks[op] - posts[op]),
+    // Push + Call gewonnen: Entscheider gewinnt eff vom Caller + Dead Money.
+    winCall: cfg(stacks[dm] + eff + dead, stacks[op] - eff),
+    // Push + Call verloren: Caller gewinnt eff vom Entscheider + Dead Money.
+    loseCall: cfg(stacks[dm] - eff, stacks[op] + eff + dead),
+  }
 }

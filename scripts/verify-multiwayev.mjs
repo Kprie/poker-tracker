@@ -23,7 +23,7 @@ const AKs = [makeCard(12, 3), makeCard(11, 3)]
 // ── Stärkster Check: 0% Call → evShove == pushWinBlinds (exakt) ──
 {
   const stacks = [1000, 1000], payouts = [70, 30], posts = [50, 100]  // HU: SB 0.5bb, BB 1bb
-  const sc = computeIcmScenarios(stacks, payouts, 100, 0, 1, computeIcmEquities)
+  const sc = computeIcmScenarios(stacks, payouts, posts, 1, computeIcmEquities)
   const emptyRange = new Map()  // Gegner callt nie
   const ev = evShoveMultiway({ stacks, payouts, posts, heroIdx: 0, heroCards: AKs, callRanges: [null, emptyRange], iterations: 500 })
   ok('0% Call → evShove == pushWinBlinds', Math.abs(ev - sc.pushWinBlinds) < 1e-9,
@@ -33,7 +33,7 @@ const AKs = [makeCard(12, 3), makeCard(11, 3)]
 // ── 100% Call: Wert in (pushCallLose, pushCallWin), AA > KK ──
 {
   const stacks = [1000, 1000], payouts = [70, 30], posts = [50, 100]
-  const sc = computeIcmScenarios(stacks, payouts, 100, 0, 1, computeIcmEquities)
+  const sc = computeIcmScenarios(stacks, payouts, posts, 1, computeIcmEquities)
   const callAll = new Map(ALL_HAND_IDS.map(id => [id, 1]))
   const evAA = evShoveMultiway({ stacks, payouts, posts, heroIdx: 0, heroCards: AA, callRanges: [null, callAll], iterations: 8000 })
   const evKK = evShoveMultiway({ stacks, payouts, posts, heroIdx: 0, heroCards: KK, callRanges: [null, callAll], iterations: 8000 })

@@ -4,8 +4,9 @@ import { handIdToCombos } from '../lib/cards'
 import { computeIcmEquities } from '../lib/icm'
 import { computeExactEquity, bestHandScore, handRankName } from '../lib/exactEquity'
 import type { ExactEquityResult } from '../lib/exactEquity'
-import { computeEquityMC } from '../lib/equity'
+import { computeEquityMC, computeIcmScenarios } from '../lib/equity'
 import type { RangeCombo } from '../lib/equity'
+import { defaultPosts } from '../lib/nashSolver'
 import { CardPicker, cardLabel, cardColorClass } from './CardPicker'
 import { ALL_HAND_IDS, handStrength } from '../data/pushFoldData'
 
@@ -359,8 +360,11 @@ export function RoundSimulator(): JSX.Element {
         if (range.length > 0) {
           const mc = computeEquityMC(heroC, range, 3000)
           rangeEquity = { hero: mc.equity, stdDev: mc.stdDev, iterations: mc.iterations }
-          // pCall = Anteil nicht-blockierter Kombos in der Range
-          pCall = Math.min(1, range.length / 1326)
+          // pCall = Anteil der Range an allen verfügbaren Villain-Combos.
+          // Verfügbar = C(52 − 2 Hero − Board, 2); preflop = C(50,2) = 1225.
+          const remaining = 52 - 2 - board.length
+          const availCombos = (remaining * (remaining - 1)) / 2
+          pCall = Math.min(1, range.length / availCombos)
         }
       }
 
@@ -370,26 +374,18 @@ export function RoundSimulator(): JSX.Element {
         ? bestHandScore([...(villainCards as [Card, Card]), ...board])
         : -1
 
-      // ── ICM-Szenarien (nur Preflop) ───────────────────────────────────
-      const pot = Math.round(bbSize * 1.5) + ante * n
-      const heroIdx = 0
-      const baseEq = computeIcmEquities(fullStacks, payouts)
-      const fold   = baseEq[heroIdx]
-
-      const eff = Math.min(fullStacks[heroIdx] ?? 0, fullStacks[callerIdx] ?? 0)
-
-      const sWinPot = [...fullStacks]; sWinPot[heroIdx] += pot
-      const pushWinBlinds = computeIcmEquities(sWinPot, payouts)[heroIdx]
-
-      const sWinCall = [...fullStacks]
-      sWinCall[heroIdx]   = (fullStacks[heroIdx] ?? 0) + eff + pot
-      sWinCall[callerIdx] = Math.max(0, (fullStacks[callerIdx] ?? 0) - eff)
-      const pushCallWin = computeIcmEquities(sWinCall, payouts)[heroIdx]
-
-      const sLoseCall = [...fullStacks]
-      sLoseCall[callerIdx] = (fullStacks[callerIdx] ?? 0) + eff + pot
-      sLoseCall[heroIdx]   = Math.max(0, (fullStacks[heroIdx] ?? 0) - eff)
-      const pushCallLose = computeIcmEquities(sLoseCall, payouts)[heroIdx]
+      // ── ICM-Szenarien (nur Preflop) — gemeinsames chip-erhaltendes Modell ──
+      // Identische Quelle wie SpotAnalyzer (computeIcmScenarios). Posts aus der
+      // Standard-Struktur (SB/BB auf den letzten zwei Sitzen, alle Ante).
+      const posts = defaultPosts(n, bbSize, ante)
+      const allAlive = fullStacks.length === n && fullStacks.every(s => s > 0)
+      const sc = allAlive
+        ? computeIcmScenarios(fullStacks, payouts, posts, callerIdx, computeIcmEquities)
+        : (() => {
+            const f = computeIcmEquities(fullStacks, payouts)[0]
+            return { fold: f, pushWinBlinds: f, pushCallWin: f, pushCallLose: f }
+          })()
+      const { fold, pushWinBlinds, pushCallWin, pushCallLose } = sc
 
       setResult({
         heroHandName:    heroScore >= 0 ? handRankName(heroScore) : '—',
@@ -683,7 +679,7 @@ export function RoundSimulator(): JSX.Element {
                 </>
               ) : (
                 <p className="text-xs text-muted font-medium">
-                  ~{Math.round(result.pCall * 1326)} Kombos
+                  ~{Math.round(result.pCall * ((52 - 2 - result.board.length) * (52 - 3 - result.board.length)) / 2)} Kombos
                 </p>
               )}
             </div>

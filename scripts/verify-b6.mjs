@@ -7,11 +7,19 @@ let failures = 0
 const ok  = (n, c, d='') => { if (!c) failures++; console.log(`${c?'PASS':'FAIL'}  ${n}${d?'  — '+d:''}`) }
 const sum = a => a.reduce((x,y)=>x+y,0)
 
+// Standard-Posts: SB/BB auf den letzten zwei Sitzen, alle Ante (sitz-indiziert).
+function defaultPosts(n, bbSize, ante) {
+  const posts = Array.from({ length: n }, () => ante)
+  if (n - 2 >= 0) posts[n - 2] += Math.round(bbSize * 0.5)
+  if (n - 1 >= 0) posts[n - 1] += bbSize
+  return posts
+}
+
 // ── Chip-Erhaltung: Spion zeichnet jede Stack-Config auf ──
 function recordConfigs(stacks, payouts, bbSize, ante, callerIdx) {
   const configs = []
   const spy = (s, p) => { configs.push([...s]); return computeIcmEquities(s, p) }
-  computeIcmScenarios(stacks, payouts, bbSize, ante, callerIdx, spy)
+  computeIcmScenarios(stacks, payouts, defaultPosts(stacks.length, bbSize, ante), callerIdx, spy)
   return configs
 }
 
@@ -49,7 +57,7 @@ const T = 3000
 
 // ── Plausibilität: Fold < WinBlinds (Pot gewinnen besser als aufgeben) ──
 {
-  const sc = computeIcmScenarios([1500, 1500], [65, 35], 200, 0, 1, computeIcmEquities)
+  const sc = computeIcmScenarios([1500, 1500], [65, 35], defaultPosts(2, 200, 0), 1, computeIcmEquities)
   ok('Fold < Push-WinBlinds', sc.fold < sc.pushWinBlinds, `fold=${sc.fold.toFixed(3)} winBlinds=${sc.pushWinBlinds.toFixed(3)}`)
   ok('Push-CallLose < Fold < Push-CallWin', sc.pushCallLose < sc.fold && sc.fold < sc.pushCallWin,
      `lose=${sc.pushCallLose.toFixed(3)} fold=${sc.fold.toFixed(3)} win=${sc.pushCallWin.toFixed(3)}`)
@@ -57,7 +65,7 @@ const T = 3000
 
 // ── Deltas relativ zum Fold-Knoten: winPot > 0, loseCall < 0 ──
 {
-  const d = computeIcmDeltas([1500, 1500], [65, 35], 0, 1, 200, 0)  // (stacks,payouts,heroIdx,callerIdx,bbSize,ante)
+  const d = computeIcmDeltas([1500, 1500], [65, 35], 0, 1, defaultPosts(2, 200, 0))  // (stacks,payouts,heroIdx,callerIdx,posts)
   ok('Delta winPot > 0', d.winPot > 0, `winPot=${d.winPot.toFixed(3)}`)
   ok('Delta loseCall < 0', d.loseCall < 0, `loseCall=${d.loseCall.toFixed(3)}`)
   ok('Delta winCall > loseCall', d.winCall > d.loseCall)

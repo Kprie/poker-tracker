@@ -1,7 +1,7 @@
 import { useCallback, useState } from 'react'
 import { computeIcmEquities } from '../lib/icm'
 import { handIdToCombos } from '../lib/cards'
-import { buildCallingRange, computeEquityMC, computeIcmScenarios } from '../lib/equity'
+import { buildCallingRange, computeEquityMC, computeIcmScenarios, VILLAIN_COMBOS } from '../lib/equity'
 import type { EquityResult, IcmScenarios } from '../lib/equity'
 import { solveNash, computeIcmDeltas } from '../lib/nashSolver'
 import type { NashResult, NashHandResult } from '../lib/nashSolver'
@@ -198,7 +198,7 @@ export function SpotAnalyzer(): JSX.Element {
     if (players === 2) {
       // HU: schneller Pfad im Main Thread (warmer Equity-Cache).
       setTimeout(() => {
-        const r = solveNash({ stacks: fullStacks, payouts, bbSize, ante })
+        const r = solveNash({ stacks: fullStacks, payouts, bbSize, ante, posts })
         setNashReady(r)
         setNashLoading(false)
       }, 0)
@@ -211,61 +211,74 @@ export function SpotAnalyzer(): JSX.Element {
     }
   }, [stackBb, bbSize, stacks, players, payoutInputs, paidPlaces, ante, posts])
 
-  function handleAnalyze(): void {
+  async function handleAnalyze(): Promise<void> {
     if (!heroHand) return
     setLoading(true)
     setResult(null)
     clearCharts()
 
-    setTimeout(() => {
-      const payouts    = payoutInputs.slice(0, paidPlaces).map(p => parseFloat(p) || 0)
-      const heroChips  = Math.round(stackBb * bbSize)
-      const fullStacks = [heroChips, ...stacks.slice(1, players)]
-      const callerIdx  = 1
+    const payouts    = payoutInputs.slice(0, paidPlaces).map(p => parseFloat(p) || 0)
+    const heroChips  = Math.round(stackBb * bbSize)
+    const fullStacks = [heroChips, ...stacks.slice(1, players)]
+    const callerIdx  = 1
 
-      const nashResult = solveNash({ stacks: fullStacks, payouts, bbSize, ante, callerIdx })
-      setNashReady(nashResult)
-
-      const heroCombos = handIdToCombos(heroHand)
-      let equityResult: EquityResult | null = null
-      let icmResult: IcmScenarios | null = null
-
-      if (heroCombos.length > 0) {
-        const heroCards = heroCombos[0]
-        const syntheticSpot = {
-          players, position, stackBb, action: 'call' as ActionType,
-          hands: Object.fromEntries(
-            ALL_HAND_IDS.map(id => {
-              const r = nashResult.callRange.get(id)
-              return [id, r && r.ev > 0 ? { ev: r.ev, freq: null } : null]
-            })
-          ),
-        }
-        const range = buildCallingRange(syntheticSpot, heroCards)
-        if (range.length > 0) equityResult = computeEquityMC(heroCards, range, 2000)
-        if (fullStacks.every(s => s > 0)) {
-          icmResult = computeIcmScenarios(fullStacks, payouts, bbSize, ante, callerIdx, computeIcmEquities)
-        }
+    // Nash-Ranges aus EINER Quelle: HU exakt (Main-Thread), n>2 über denselben
+    // multiway-exakten Worker wie „Nash-Ranges laden" — beide Buttons konsistent.
+    let nashResult: NashResult
+    try {
+      if (players === 2) {
+        nashResult = solveNash({ stacks: fullStacks, payouts, bbSize, ante, posts, callerIdx })
+      } else {
+        const active = Array.from({ length: players }, (_, i) => i)
+        const res = await solveMultiwaySpotAsync(active, { stacks: fullStacks, payouts, posts, evIterations: 800, maxIterations: 8, damping: 0.5 })
+        nashResult = adaptMultiway(res)
       }
-
-      setResult({ handId: heroHand, nashResult, equity: equityResult, icm: icmResult, payouts, stacks: fullStacks })
+    } catch (err) {
+      console.error('Analyse-Solver-Fehler:', err)
       setLoading(false)
-      setEvTableData(getHandEvTableData(nashResult))
+      return
+    }
+    setNashReady(nashResult)
 
-      const nCall = [...nashResult.callRange.values()].filter(r => r.ev > 0).length
-      const nPush = [...nashResult.pushRange.values()].filter(r => r.ev > 0).length
-      const nashCallPctVal = Math.round(nCall / 169 * 100)
-      const nashPushPctVal = Math.round(nPush / 169 * 100)
+    const heroCombos = handIdToCombos(heroHand)
+    let equityResult: EquityResult | null = null
+    let icmResult: IcmScenarios | null = null
 
-      setChartsLoading(true)
-      setTimeout(() => {
-        const deltas = computeIcmDeltas(fullStacks, payouts, 0, callerIdx, bbSize, ante)
-        setEvChartData(getHandEvChartData(heroHand, deltas))
-        const corr = getRangeCorrelationData(deltas, nashCallPctVal, nashPushPctVal)
-        setRangeData(corr.points)
-        setNashPoint(corr.nashPoint)
-        setChartsLoading(false)
-      }, 0)
+    if (heroCombos.length > 0) {
+      const heroCards = heroCombos[0]
+      const syntheticSpot = {
+        players, position, stackBb, action: 'call' as ActionType,
+        hands: Object.fromEntries(
+          ALL_HAND_IDS.map(id => {
+            const r = nashResult.callRange.get(id)
+            return [id, r && r.ev > 0 ? { ev: r.ev, freq: null } : null]
+          })
+        ),
+      }
+      const range = buildCallingRange(syntheticSpot, heroCards)
+      if (range.length > 0) equityResult = computeEquityMC(heroCards, range, 2000)
+      if (fullStacks.every(s => s > 0)) {
+        icmResult = computeIcmScenarios(fullStacks, payouts, posts, callerIdx, computeIcmEquities)
+      }
+    }
+
+    setResult({ handId: heroHand, nashResult, equity: equityResult, icm: icmResult, payouts, stacks: fullStacks })
+    setLoading(false)
+    setEvTableData(getHandEvTableData(nashResult))
+
+    const nCall = [...nashResult.callRange.values()].filter(r => r.ev > 0).length
+    const nPush = [...nashResult.pushRange.values()].filter(r => r.ev > 0).length
+    const nashCallPctVal = Math.round(nCall / 169 * 100)
+    const nashPushPctVal = Math.round(nPush / 169 * 100)
+
+    setChartsLoading(true)
+    setTimeout(() => {
+      const deltas = computeIcmDeltas(fullStacks, payouts, 0, callerIdx, posts)
+      setEvChartData(getHandEvChartData(heroHand, deltas))
+      const corr = getRangeCorrelationData(deltas, nashCallPctVal, nashPushPctVal)
+      setRangeData(corr.points)
+      setNashPoint(corr.nashPoint)
+      setChartsLoading(false)
     }, 0)
   }
 
@@ -616,7 +629,10 @@ export function SpotAnalyzer(): JSX.Element {
                     {/* Gewichteter Push-EV */}
                     {result.equity && selectedNash && (() => {
                       const { fold, pushWinBlinds, pushCallWin, pushCallLose } = result.icm!
-                      const pCall = Math.min(1, [...result.nashResult.callRange.values()].filter(r=>r.ev>0).length / 169)
+                      const callCombos = [...result.nashResult.callRange.values()]
+                        .filter(r => r.ev > 0)
+                        .reduce((s, r) => s + handIdToCombos(r.handId).length, 0)
+                      const pCall = Math.min(1, callCombos / VILLAIN_COMBOS)
                       const eq    = selectedNash.equity
                       const ev    = (1-pCall)*(pushWinBlinds-fold) + pCall*eq*(pushCallWin-fold) + pCall*(1-eq)*(pushCallLose-fold)
                       return (
