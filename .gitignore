@@ -9,3 +9,7 @@ dist
 scripts/.equity-cache.json
 scripts/.verify-*.bundle.mjs
 .claude/worktrees
+
+# AI-Kontext / Planungsdokumente — nicht tool-relevant, gehören nicht ins Repo
+CLAUDE.md
+plans/
