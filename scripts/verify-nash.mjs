@@ -51,9 +51,14 @@ expect('72o equity < AA equity', (t2o?.equity ?? 1) < (aa?.equity ?? 0))
 // Zähle Push-Range-Größe — bei 10bb HU sollte SB einen großen Teil pushen (> 50%).
 let pushCount = 0
 for (const [, r] of res.pushRange) if (r.freq === 1) pushCount++
-const pushPct = (pushCount / res.pushRange.size * 100).toFixed(0)
+const pushFrac = pushCount / res.pushRange.size
+const pushPct = (pushFrac * 100).toFixed(0)
 console.log(`\n  Push-Range: ${pushCount}/${res.pushRange.size} Hände (${pushPct}%)`)
-expect('Push-Range plausibel (30–100%)', pushCount / res.pushRange.size >= 0.30 && pushCount / res.pushRange.size <= 1.0)
+// B6.1: chip-erhaltendes HU-Modell → Nash-Soll bei 10bb SB ≈ 55% (vorher fälschlich 100%).
+expect('Push-Range realistisch (45–65%)', pushFrac >= 0.45 && pushFrac <= 0.65, `${pushPct}% (Soll ~55%)`)
+
+// Stärkste Hände pushen, schwächste folden.
+expect('72o foldet (freq=0)', t2o?.freq === 0, `72o freq=${t2o?.freq}`)
 
 console.log(failures === 0 ? '\nALL PASS' : `\n${failures} FAILURE(S)`)
 process.exit(failures === 0 ? 0 : 1)

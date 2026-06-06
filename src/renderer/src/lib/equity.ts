@@ -133,25 +133,43 @@ export function computeIcmScenarios(
   const n = stacks.length
   const heroIdx = 0
 
-  // Pot = SB + BB + alle Antes
+  if (n === 2) {
+    // HU exakt & chip-erhaltend (B6.1). Sitz 0 = SB (=Hero), Sitz 1 = BB.
+    // Stacks sind Pre-Posting; Posts werden intern verrechnet.
+    const posts = [bbSize * 0.5 + ante, bbSize + ante]  // [SB, BB]
+    const op = callerIdx
+    const eff = Math.min(stacks[heroIdx], stacks[op])
+    const cfg = (h: number, o: number): number[] => {
+      const c = [...stacks]
+      c[heroIdx] = h
+      c[op] = o
+      return c
+    }
+    // Fold: Hero gibt SB-Post auf, Gegner gewinnt ihn.
+    const fold = computeEquities(cfg(stacks[heroIdx] - posts[heroIdx], stacks[op] + posts[heroIdx]), payouts)[heroIdx]
+    // Push, Gegner foldet: Gegner verliert seinen Post.
+    const pushWinBlinds = computeEquities(cfg(stacks[heroIdx] + posts[op], stacks[op] - posts[op]), payouts)[heroIdx]
+    // Push + Call: effektiver Stack-Swap (Blinds/Antes stecken bereits in den Stacks).
+    const pushCallWin = computeEquities(cfg(stacks[heroIdx] + eff, stacks[op] - eff), payouts)[heroIdx]
+    const pushCallLose = computeEquities(cfg(stacks[heroIdx] - eff, stacks[op] + eff), payouts)[heroIdx]
+    return { fold, pushWinBlinds, pushCallWin, pushCallLose }
+  }
+
+  // ── n > 2: vereinfachtes Alt-Modell (B6.4 ersetzt dies, siehe plans/01) ──
   const pot = Math.round(bbSize * 1.5) + ante * n
 
-  // A: Fold — keine Änderung
   const fold = computeEquities(stacks, payouts)[heroIdx]
 
-  // B: Push, alle folden — Hero gewinnt pot
   const sB = [...stacks]
   sB[heroIdx] += pot
   const pushWinBlinds = computeEquities(sB, payouts)[heroIdx]
 
-  // C: Push, gecallt, Hero gewinnt — Hero übernimmt Callers Stack (bis Hero-Stack)
   const effectivePot = Math.min(stacks[heroIdx], stacks[callerIdx])
   const sC = [...stacks]
   sC[heroIdx] = stacks[heroIdx] + effectivePot + pot
   sC[callerIdx] = Math.max(0, stacks[callerIdx] - effectivePot)
   const pushCallWin = computeEquities(sC, payouts)[heroIdx]
 
-  // D: Push, gecallt, Hero verliert — Caller übernimmt Heroes Stack
   const sD = [...stacks]
   sD[callerIdx] = stacks[callerIdx] + effectivePot + pot
   sD[heroIdx] = Math.max(0, stacks[heroIdx] - effectivePot)

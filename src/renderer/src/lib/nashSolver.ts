@@ -44,16 +44,30 @@ const VILLAIN_COMBOS = 1225  // C(50,2): alle Villain-Combos nach Abzug der 2 He
 // ─── ICM-Szenario-Berechnung ──────────────────────────────────────────────────
 
 export interface IcmDeltas {
-  /** ICM-Equity-Zunahme wenn Hero den Pot gewinnt (alle folden). */
+  /** ICM-$ von (Shove, Gegner foldet) minus Fold-Knoten. */
   winPot: number
-  /** ICM-Equity-Zunahme wenn Hero gecallt wird und gewinnt. */
+  /** ICM-$ von (Shove, gecallt, gewonnen) minus Fold-Knoten. */
   winCall: number
-  /** ICM-Equity-Veränderung wenn Hero gecallt wird und verliert (negativ). */
+  /** ICM-$ von (Shove, gecallt, verloren) minus Fold-Knoten (i. d. R. negativ). */
   loseCall: number
-  /** Aktuelle ICM-Equity des Heroes. */
+  /** ICM-$ des Fold-Knotens (neue Basislinie für alle Deltas). */
   currentEq: number
 }
 
+/**
+ * ICM-$-Deltas der Push-Knoten **relativ zum Fold-Knoten**.
+ *
+ * HU (n=2): chip-erhaltendes, exaktes Modell (B6.1).
+ *   Konvention: Sitz 0 = SB, Sitz 1 = BB (SpotAnalyzer-Setup). Stacks sind
+ *   Pre-Posting-Werte; Posts werden intern abgezogen. Der Entscheider ist
+ *   `heroIdx`, der Gegner `callerIdx` — die Funktion wird vom Solver auch mit
+ *   vertauschten Indizes (BB-Call-Entscheidung) aufgerufen, daher sind Posts
+ *   **sitz-indiziert**, nicht rollen-indiziert.
+ *
+ * n>2: bisheriges (vereinfachtes, nicht chip-erhaltendes) Modell — wird in
+ *   Phase B6.4 durch das multiway-exakte Modell mit Side-Pots und rekursivem
+ *   Fold-Baum ersetzt. Siehe plans/01-b6-ev-model.md.
+ */
 export function computeIcmDeltas(
   stacks: number[],
   payouts: number[],
@@ -63,22 +77,48 @@ export function computeIcmDeltas(
   ante: number,
 ): IcmDeltas {
   const n = stacks.length
+
+  if (n === 2) {
+    const posts = [bbSize * 0.5 + ante, bbSize + ante]  // [SB(Sitz0), BB(Sitz1)]
+    const dm = heroIdx    // Entscheider
+    const op = callerIdx  // Gegner
+    const eff = Math.min(stacks[dm], stacks[op])
+    const cfg = (dmStack: number, opStack: number): number[] => {
+      const c = [...stacks]
+      c[dm] = dmStack
+      c[op] = opStack
+      return c
+    }
+    // Fold: Entscheider gibt seinen eigenen Post auf, Gegner gewinnt ihn.
+    const foldEq = computeIcmEquities(cfg(stacks[dm] - posts[dm], stacks[op] + posts[dm]), payouts)[dm]
+    // Shove + Gegner foldet: Gegner verliert seinen Post an den Entscheider.
+    const winPotEq = computeIcmEquities(cfg(stacks[dm] + posts[op], stacks[op] - posts[op]), payouts)[dm]
+    // Shove + Call: effektiver Stack-Swap (Blinds/Antes stecken bereits in den Stacks).
+    const winCallEq = computeIcmEquities(cfg(stacks[dm] + eff, stacks[op] - eff), payouts)[dm]
+    const loseCallEq = computeIcmEquities(cfg(stacks[dm] - eff, stacks[op] + eff), payouts)[dm]
+
+    return {
+      winPot: winPotEq - foldEq,
+      winCall: winCallEq - foldEq,
+      loseCall: loseCallEq - foldEq,
+      currentEq: foldEq,
+    }
+  }
+
+  // ── n > 2: vereinfachtes Alt-Modell (B6.4 ersetzt dies, siehe plans/01) ──
   const pot = Math.round(bbSize * 1.5) + ante * n
   const currentEq = computeIcmEquities(stacks, payouts)[heroIdx]
 
-  // Szenario: Alle folden — Hero gewinnt Pot
   const sWinPot = [...stacks]
   sWinPot[heroIdx] += pot
   const eqWinPot = computeIcmEquities(sWinPot, payouts)[heroIdx]
 
-  // Szenario: Gecallt + gewonnen
   const eff = Math.min(stacks[heroIdx], stacks[callerIdx])
   const sWinCall = [...stacks]
   sWinCall[heroIdx] = stacks[heroIdx] + eff + pot
   sWinCall[callerIdx] = Math.max(0, stacks[callerIdx] - eff)
   const eqWinCall = computeIcmEquities(sWinCall, payouts)[heroIdx]
 
-  // Szenario: Gecallt + verloren
   const sLoseCall = [...stacks]
   sLoseCall[callerIdx] = stacks[callerIdx] + eff + pot
   sLoseCall[heroIdx] = Math.max(0, stacks[heroIdx] - eff)
@@ -169,34 +209,51 @@ export function solveNash(input: NashInput): NashResult {
 
   let converged = false
   let iter = 0
+  // Konvergenz wird über die Stabilität der reinen Entscheidungs-Mengen erkannt
+  // (welche Hände pushen/callen), nicht über Float-Deltas der Frequenzen: Grenzhände
+  // oszillieren durch die Dämpfung minimal um die Schwelle, ohne dass sich die
+  // tatsächliche Push/Fold-Entscheidung ändert. `convergenceThreshold` (als Anteil
+  // von 169) erlaubt ein kleines Flackern.
+  const changeTolerance = Math.max(1, Math.floor(convergenceThreshold * ALL_HAND_IDS.length))
+  let prevPushDec = new Set<HandId>()
+  let prevCallDec = new Set<HandId>(ALL_HAND_IDS)
+
+  const symDiff = (a: Set<HandId>, b: Set<HandId>): number => {
+    let d = 0
+    for (const x of a) if (!b.has(x)) d++
+    for (const x of b) if (!a.has(x)) d++
+    return d
+  }
 
   for (; iter < maxIterations; iter++) {
-    let maxChange = 0
-
     // ── Schritt A: Hero-Push-Frequenzen (gedämpft) ───────────────────────
     // P(call) hängt nur von der aktuellen Call-Range ab → einmal pro Sweep.
     const callW = rangeWeight(callFreq)
     const pCall = Math.min(1, callW / totalCallCombos)
+    const pushDec = new Set<HandId>()
     for (const hHand of ALL_HAND_IDS) {
       const target = heroPushEv(hHand, pCall).ev > 0 ? 1 : 0
+      if (target) pushDec.add(hHand)
       const prev = pushFreq.get(hHand)!
-      const next = prev * (1 - DAMPING) + target * DAMPING
-      pushFreq.set(hHand, next)
-      maxChange = Math.max(maxChange, Math.abs(next - prev))
+      pushFreq.set(hHand, prev * (1 - DAMPING) + target * DAMPING)
     }
 
     // ── Schritt B: Villain-Call-Frequenzen (gedämpft) ────────────────────
     const pushW = rangeWeight(pushFreq)
     const pPush = Math.min(1, pushW / totalCallCombos)
+    const callDec = new Set<HandId>()
     for (const vHand of ALL_HAND_IDS) {
       const target = villainCallEv(vHand, pPush).ev > 0 ? 1 : 0
+      if (target) callDec.add(vHand)
       const prev = callFreq.get(vHand)!
-      const next = prev * (1 - DAMPING) + target * DAMPING
-      callFreq.set(vHand, next)
-      maxChange = Math.max(maxChange, Math.abs(next - prev))
+      callFreq.set(vHand, prev * (1 - DAMPING) + target * DAMPING)
     }
 
-    if (maxChange < convergenceThreshold) {
+    // ── Konvergenz: Entscheidungs-Mengen stabil ──────────────────────────
+    const changes = symDiff(pushDec, prevPushDec) + symDiff(callDec, prevCallDec)
+    prevPushDec = pushDec
+    prevCallDec = callDec
+    if (iter > 0 && changes <= changeTolerance) {
       converged = true
       iter++
       break

@@ -37,7 +37,7 @@ function rangeWeight(range: Map<HandId, number>): number {
   return total
 }
 
-const MAX_COMBOS = 1326  // C(52,2)
+const MAX_COMBOS = 1225  // C(50,2): Villain-Combos nach Abzug der 2 Hero-Karten (vgl. nashSolver)
 
 /** Sortiert alle 169 HandIds absteigend nach Handstärke (einmalig). */
 const HANDS_BY_STRENGTH: HandId[] = [...ALL_HAND_IDS].sort(

@@ -13,8 +13,19 @@ export function computeIcmEquities(stacks: number[], payouts: number[]): number[
   const m = Math.min(payouts.length, n)
   const equity = new Array<number>(n).fill(0)
 
+  // Ausgeschiedene Spieler (0 Chips) können keinen Platz mehr gewinnen — sie belegen
+  // die untersten Plätze. Ohne diese Behandlung bräche die Rekursion bei einem
+  // 0-Stack ab und gäbe dem Spieler 0 statt seiner tatsächlichen (niedrigsten)
+  // Auszahlung (z. B. 2. Platz im HU-All-in). Nur lebende Spieler gehen in die
+  // Malmuth-Harville-Rekursion ein.
+  const alive: number[] = []
+  const busted: number[] = []
+  for (let i = 0; i < n; i++) (stacks[i] > 0 ? alive : busted).push(i)
+
+  const aliveDepth = Math.min(payouts.length, alive.length)
+
   function recurse(remaining: number[], depth: number, prob: number): void {
-    if (depth >= m || remaining.length === 0) return
+    if (depth >= aliveDepth || remaining.length === 0) return
     const total = sum(remaining.map(i => stacks[i]))
     if (total === 0) return
     for (const i of remaining) {
@@ -24,7 +35,16 @@ export function computeIcmEquities(stacks: number[], payouts: number[]): number[
     }
   }
 
-  recurse(Array.from({ length: n }, (_, i) => i), 0, 1)
+  recurse(alive.slice(), 0, 1)
+
+  // Ausgeschiedene teilen sich die verbleibenden (untersten) Auszahlungsplätze.
+  if (busted.length > 0) {
+    let rem = 0
+    for (let place = alive.length; place < m; place++) rem += payouts[place]
+    const share = rem / busted.length
+    for (const i of busted) equity[i] = share
+  }
+
   return equity
 }
 

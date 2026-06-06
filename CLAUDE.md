@@ -256,7 +256,10 @@ Full phased plan in `plans/00-professional-upgrade.md`. Bug status:
 | B3 | `pokerstars-hh.ts` | 3-Bet timing — verified correct, no bug (comment added) | ✅ verified |
 | B4 | `analytics.ts` | `bankrollSeries()` / `computeItmDepth()` / `groupBy()` now enforce `withResults()` | ✅ fixed |
 | B5 | `equityTable.ts` | **Critical**: flipped equity pairs were double-inverted → all `lookupEquity` calls where `h1 > h2` lexically returned `1 − correct`. Corrupted every Nash result + range-equity display. | ✅ fixed (cache→v3) |
-| B6 | `nashSolver.ts` / `equity.ts` | `computeIcmDeltas` / `computeIcmScenarios` not chip-conserving (pot accounting) → push ranges too wide | 🔴 open |
+| B6 | `nashSolver.ts` / `equity.ts` | `computeIcmDeltas` / `computeIcmScenarios` not chip-conserving → push ranges too wide. **HU (n=2) now chip-conserving exact (B6.1)**; n>2 multiway still pending (B6.4). | 🟡 HU fixed, multiway open |
+| B7 | `icm.ts` | **Critical**: `computeIcmEquities` gave 0-chip (busted) players equity 0 instead of their finishing payout (HU all-in loser got 0 instead of 2nd-place money). Made calling look far too risky → 100 % push ranges. | ✅ fixed |
+
+Plan for B6 multiway: `plans/01-b6-ev-model.md` (chip-conserving, full multiway with side pots, recursive fold tree). Verification: `scripts/verify-b6.mjs` (chip conservation + 0-stack ICM, fast) and `scripts/verify-nash.mjs` (HU 10bb push range ≈ 55 %, converges in ~7 iters).
 
 Verification scripts: `scripts/verify-icm.mjs` (money math, fast), `scripts/verify-equity.mjs` (equity layer), `scripts/verify-nash.mjs` (solver). Run via `npx esbuild scripts/<f>.mjs --bundle --platform=node --format=esm --outfile=scripts/.t.mjs && node scripts/.t.mjs`.
 
