@@ -96,7 +96,9 @@ export function EquityLab(): JSX.Element {
     setTimeout(() => {
       const eq = multiwayEquityBoard(complete, boardCards, 8000)
       const reps: HandReport[] = complete.map((hand, i) => {
-        const dist = handClassDistribution(hand, boardCards, 8000)
+        // Hole-Cards der übrigen Hände als Dead Cards blocken (sonst verzerrt der Runout).
+        const dead = complete.filter((_, j) => j !== i).flat()
+        const dist = handClassDistribution(hand, boardCards, 8000, dead)
         const topClasses = dist.dist
           .map((pct, k) => ({ name: CATEGORY_NAMES[k], pct }))
           .filter(x => x.pct > 0.005)

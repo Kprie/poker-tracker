@@ -136,14 +136,17 @@ function computeNetChips(
   invested += streetContribution(section(block, bounds.iTurn, [bounds.iRiver, bounds.iShow, bounds.iSummary]), isHero)
   invested += streetContribution(section(block, bounds.iRiver, [bounds.iShow, bounds.iSummary]), isHero)
 
+  // Hero-Name als ganzes Token (Wortgrenzen), damit z. B. 'Joe' nicht 'Joey' matcht.
+  const heroTok = `(?<![\\w])${esc(hero)}(?![\\w])`
+
   const summary = bounds.iSummary >= 0 ? block.slice(bounds.iSummary) : ''
   let collected = 0
-  const colRe = new RegExp(`${esc(hero)}[^\\n]*?(?:collected|won|gewinnt|gewann)\\D*(\\d[\\d,]*)`, 'g')
+  const colRe = new RegExp(`${heroTok}[^\\n]*?(?:collected|won|gewinnt|gewann)\\D*(\\d[\\d,]*)`, 'g')
   for (const m of summary.matchAll(colRe)) collected += parseInt(m[1].replace(/,/g, ''), 10)
 
   let uncalled = 0
-  const unEn = new RegExp(`Uncalled bet \\((\\d[\\d,]*)\\) returned to ${esc(hero)}`, 'g')
-  const unDe = new RegExp(`Nicht eingel[öo]ster Einsatz \\((\\d[\\d,]*)\\)[^\\n]*${esc(hero)}`, 'g')
+  const unEn = new RegExp(`Uncalled bet \\((\\d[\\d,]*)\\) returned to ${heroTok}`, 'g')
+  const unDe = new RegExp(`Nicht eingel[öo]ster Einsatz \\((\\d[\\d,]*)\\)[^\\n]*?${heroTok}`, 'g')
   for (const m of block.matchAll(unEn)) uncalled += parseInt(m[1].replace(/,/g, ''), 10)
   for (const m of block.matchAll(unDe)) uncalled += parseInt(m[1].replace(/,/g, ''), 10)
 
@@ -178,7 +181,9 @@ function computePosition(block: string, hero: string, iHole: number): string | n
   const button = parseInt(btnM[1], 10)
   const seats: number[] = []
   let heroSeat = -1
-  for (const m of head.matchAll(/^Seat (\d+): (.+?) \(/gm)) {
+  for (const m of head.matchAll(/^Seat (\d+): (.+?) \(([^\n]*)/gm)) {
+    // Aussetzende Spieler zählen nicht zur aktiven Positions-Reihenfolge.
+    if (/sitting out|sitzt aus|out of hand/i.test(m[3])) continue
     const seat = parseInt(m[1], 10)
     seats.push(seat)
     if (m[2].trim() === hero) heroSeat = seat

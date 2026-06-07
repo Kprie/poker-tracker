@@ -22,6 +22,11 @@ ok('riskPremium BF=2 ≈ 0.1667', near(riskPremium(2), 1 / 6))
   ok('chipChop Σ = Prizepool', near(sum(cc), 100), `Σ=${sum(cc)}`)
   ok('chipChop = [40,32,28]', near(cc[0], 40) && near(cc[1], 32) && near(cc[2], 28), `[${cc.map(x => x.toFixed(1))}]`)
   ok('chipChop komprimiert (Leader<prop, Short>prop)', cc[0] < 50 && cc[2] > 20)
+
+  // Reihenfolge-unabhängig: aufsteigend eingegebene Payouts dürfen den Chop nicht invertieren.
+  const ccAsc = chipChop([5000, 3000, 2000], [20, 30, 50])
+  ok('chipChop ordnungsunabhängig = [40,32,28]', near(ccAsc[0], 40) && near(ccAsc[1], 32) && near(ccAsc[2], 28), `[${ccAsc.map(x => x.toFixed(1))}]`)
+  ok('chipChop: Leader erhält am meisten', ccAsc[0] > ccAsc[1] && ccAsc[1] > ccAsc[2])
 }
 
 // ── Deal: ICM-Chop Σ = Prizepool, diff Σ = 0 ──

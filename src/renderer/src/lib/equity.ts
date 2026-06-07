@@ -164,11 +164,15 @@ export function icmScenarioConfigs(
   op: number,
 ): { fold: number[]; winPot: number[]; winCall: number[]; loseCall: number[] } {
   const eff = Math.min(stacks[dm], stacks[op])
-  // Dead Money: Posts aller übrigen (bereits gefoldeten) Sitze.
+  // Posts auf den verfügbaren Stack kappen (All-in-Blind kann nicht mehr posten als er hat),
+  // sonst entstünden negative Stacks. Chip-Erhaltung bleibt gewahrt.
+  const pd = Math.min(posts[dm], stacks[dm])
+  const po = Math.min(posts[op], stacks[op])
+  // Dead Money: (gekappte) Posts aller übrigen (bereits gefoldeten) Sitze.
   let dead = 0
   const base = stacks.slice()
   for (let i = 0; i < stacks.length; i++) {
-    if (i !== dm && i !== op) { dead += posts[i]; base[i] = stacks[i] - posts[i] }
+    if (i !== dm && i !== op) { const pi = Math.min(posts[i], stacks[i]); dead += pi; base[i] = stacks[i] - pi }
   }
   const cfg = (h: number, o: number): number[] => {
     const c = base.slice()
@@ -178,9 +182,9 @@ export function icmScenarioConfigs(
   }
   return {
     // Fold: Entscheider gibt seinen Post auf; Caller gewinnt Entscheider-Post + Dead Money.
-    fold: cfg(stacks[dm] - posts[dm], stacks[op] + posts[dm] + dead),
+    fold: cfg(stacks[dm] - pd, stacks[op] + pd + dead),
     // Push, alle folden: Entscheider gewinnt Caller-Post + Dead Money.
-    winPot: cfg(stacks[dm] + posts[op] + dead, stacks[op] - posts[op]),
+    winPot: cfg(stacks[dm] + po + dead, stacks[op] - po),
     // Push + Call gewonnen: Entscheider gewinnt eff vom Caller + Dead Money.
     winCall: cfg(stacks[dm] + eff + dead, stacks[op] - eff),
     // Push + Call verloren: Caller gewinnt eff vom Entscheider + Dead Money.

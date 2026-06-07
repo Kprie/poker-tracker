@@ -41,6 +41,8 @@ function checkConservation(label, stacks, bbSize, ante) {
 
 checkConservation('3-way', [1000, 1000, 1000], 200, 0)
 checkConservation('4-way+Ante', [800, 1500, 2200, 1000], 200, 25)
+// Short-Blind: BB-Sitz hat weniger Chips als der BB-Post → Posts auf Stack gekappt, keine negativen Stacks.
+checkConservation('short-blind', [2000, 2000, 50], 200, 0)
 
 // ── Regression: HU-Generalisierung == altes exaktes Stack-Swap-Modell ──
 {

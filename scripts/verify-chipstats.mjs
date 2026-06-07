@@ -111,5 +111,50 @@ const parse = (t) => parsePokerStarsHands(t)[0]
   ok('I: Position CO (Seat direkt vor Button)', h.position === 'CO', `${h.position}`)
 }
 
+// ── J: Namens-Teilstring — Hero 'Joe' darf nicht 'Joey' matchen ──
+{
+  const h = parse([
+    `PokerStars Hand #5: Tournament #100, $1.00+$0.10 USD Hold'em No Limit - Level V (10/20) - 2024/01/01 12:20:00 ET`,
+    `Table '100 1' 9-max Seat #1 is the button`,
+    `Seat 1: Joe (1500 in chips)`,
+    `Seat 2: Joey (1500 in chips)`,
+    `Seat 3: Al (1500 in chips)`,
+    `Al: posts small blind 10`,
+    `Joey: posts big blind 20`,
+    `*** HOLE CARDS ***`,
+    `Dealt to Joe [2c 7d]`,
+    `Joe: folds`,
+    `Al: folds`,
+    `Uncalled bet (10) returned to Joey`,
+    `Joey collected 30 from pot`,
+    `*** SUMMARY ***`,
+    `Total pot 30 | Rake 0`,
+    `Seat 2: Joey collected (30)`,
+  ].join('\n'))
+  ok('J: Hero Joe foldet BTN → netBb 0 (kein Joey-Match)', near(h.netBb, 0), `${h.netBb}`)
+  ok('J: Position BTN', h.position === 'BTN', `${h.position}`)
+}
+
+// ── K: Aussetzender Spieler zählt nicht zur Positionsreihenfolge ──
+{
+  const h = parse([
+    `PokerStars Hand #6: Tournament #100, $1.00+$0.10 USD Hold'em No Limit - Level VI (10/20) - 2024/01/01 12:25:00 ET`,
+    `Table '100 1' 9-max Seat #1 is the button`,
+    `Seat 1: P1 (1500 in chips)`,
+    `Seat 2: P2 (1500 in chips)`,
+    `Seat 3: P3 (1500 in chips) is sitting out`,
+    `Seat 4: Hero (1500 in chips)`,
+    `P2: posts small blind 10`,
+    `Hero: posts big blind 20`,
+    `*** HOLE CARDS ***`,
+    `Dealt to Hero [Ah Kh]`,
+    `Hero: checks`,
+    `*** SUMMARY ***`,
+    `Total pot 30 | Rake 0`,
+    `Seat 2: P2 folded`,
+  ].join('\n'))
+  ok('K: Position BB (Sitz 3 ausgesetzt, 3 aktive)', h.position === 'BB', `${h.position}`)
+}
+
 console.log(failures === 0 ? '\nALL PASS' : `\n${failures} FAILURE(S)`)
 process.exit(failures === 0 ? 0 : 1)

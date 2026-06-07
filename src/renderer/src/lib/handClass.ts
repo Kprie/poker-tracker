@@ -34,9 +34,10 @@ export function handClassDistribution(
   hole: readonly [Card, Card],
   board: readonly Card[],
   iterations = 10_000,
+  dead: readonly Card[] = [],
 ): HandClassResult {
   const dist = new Array<number>(9).fill(0)
-  const known = new Set<Card>([hole[0], hole[1], ...board])
+  const known = new Set<Card>([hole[0], hole[1], ...board, ...dead])
   const avail = FULL_DECK.filter(c => !known.has(c))
   const need = 5 - board.length
 

@@ -23,8 +23,10 @@ export function chipChop(stacks: number[], payouts: number[]): number[] {
   const relevant = payouts.slice(0, Math.min(n, payouts.length))
   const sumRel = sum(relevant)
   const total = sum(stacks)
-  // Jeder sichert den kleinsten verteilten Platz — nur wenn es mindestens n Plätze gibt.
-  const lockable = payouts.length >= n ? (payouts[n - 1] ?? 0) : 0
+  // Jeder sichert den kleinsten verteilten Platz — nur wenn es mindestens n Plätze
+  // gibt. Math.min statt payouts[n-1], damit nicht-absteigende Eingaben den Chop
+  // nicht invertieren.
+  const lockable = payouts.length >= n ? Math.min(...relevant) : 0
   const remainder = sumRel - lockable * n
   return stacks.map(s => lockable + (total > 0 ? (remainder * s) / total : sumRel / n))
 }

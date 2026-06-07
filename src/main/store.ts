@@ -1,5 +1,5 @@
 import { app, safeStorage } from 'electron'
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs'
+import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'fs'
 import { homedir } from 'os'
 import { join } from 'path'
 import type { AppData, AppSettings, Tournament, TournamentSpeed } from '../shared/types'
@@ -159,7 +159,18 @@ export function loadData(): AppData {
       saveData(cache)
       return cache
     } catch {
-      // fall through to fresh data on corrupt file
+      // Datei existiert, ließ sich aber nicht lesen/entschlüsseln (z. B. geänderter
+      // OS-Schlüsselbund nach Profil-/Maschinenwechsel). NICHT mit leeren Daten
+      // überschreiben — die Originalbytes als Backup sichern, damit nichts
+      // unwiederbringlich verloren geht (recoverbar, falls der Schlüssel zurückkehrt).
+      try {
+        renameSync(file, `${file}.corrupt-${Date.now()}`)
+      } catch {
+        // Backup fehlgeschlagen → lieber gar nicht überschreiben: leeres In-Memory-
+        // Cache zurückgeben, ohne zu speichern, damit die Originaldatei intakt bleibt.
+        cache = { settings: { ...DEFAULT_SETTINGS, pokerStarsPath: detectPokerStarsPath() }, tournaments: [] }
+        return cache
+      }
     }
   }
   cache = {

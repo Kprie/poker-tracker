@@ -42,6 +42,14 @@ const C = (r, s) => makeCard(r, s)
   // River Broadway-Straße: AhAs auf A-K-Q-J-T → Kategorie 4 (Straße)
   const riv = handClassDistribution(AA, [C(12, 1), C(11, 0), C(10, 0), C(9, 0), C(8, 0)])
   ok('handClass River Broadway = Straße', near(riv.dist[4], 1), `[${riv.dist.map(x => x.toFixed(2))}]`)
+
+  // Dead Cards: AsAh + Trips-Board (Ad), Turn → River. Ohne Dead kann Ac Vierling Asse geben;
+  // mit Ac als Dead ist Vierling (Kat. 7) unmöglich.
+  const turnBoard = [C(12, 1), C(11, 0), C(10, 2), C(9, 3)]  // Ad Kc Qh Js
+  const noDead = handClassDistribution([C(12, 3), C(12, 2)], turnBoard)
+  const withDead = handClassDistribution([C(12, 3), C(12, 2)], turnBoard, 0, [C(12, 0)])
+  ok('handClass: ohne Dead kann Vierling Asse kommen', noDead.dist[7] > 0, `${noDead.dist[7]}`)
+  ok('handClass: Dead Ac verhindert Vierling', withDead.dist[7] === 0, `${withDead.dist[7]}`)
 }
 
 // ── Draw-Detektion ──
