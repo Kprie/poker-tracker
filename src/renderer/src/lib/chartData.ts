@@ -2,7 +2,7 @@ import { lookupEquityVsRange } from './equityTable'
 import type { IcmDeltas } from './nashSolver'
 import type { NashResult } from './nashSolver'
 import type { HandId } from '../data/pushFoldData'
-import { ALL_HAND_IDS, handStrength } from '../data/pushFoldData'
+import { ALL_HAND_IDS, handStrength, RANKS } from '../data/pushFoldData'
 import { handIdToCombos } from './cards'
 
 // ─── Typen ────────────────────────────────────────────────────────────────────
@@ -25,8 +25,6 @@ export interface RangeCorrelationPoint {
 }
 
 // ─── Hilfsfunktionen ─────────────────────────────────────────────────────────
-
-const RANKS = ['A', 'K', 'Q', 'J', 'T', '9', '8', '7', '6', '5', '4', '3', '2'] as const
 
 /** Wie nashSolver.ts/rangeWeight — Summe der Kombos × Frequenz. */
 function rangeWeight(range: Map<HandId, number>): number {

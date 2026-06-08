@@ -19,7 +19,14 @@ export interface PushFoldSpot {
 
 // ─── Kanonische Hand-IDs ─────────────────────────────────────────────────────
 
-const RANKS = ['A', 'K', 'Q', 'J', 'T', '9', '8', '7', '6', '5', '4', '3', '2'] as const
+export const RANKS = ['A', 'K', 'Q', 'J', 'T', '9', '8', '7', '6', '5', '4', '3', '2'] as const
+
+/** Kanonische Hand-ID aus 13×13-Grid-Koordinaten (0 = A … 12 = 2). */
+export function getHandId(row: number, col: number): HandId {
+  if (row === col) return RANKS[row] + RANKS[row]
+  if (row < col) return RANKS[row] + RANKS[col] + 's'
+  return RANKS[col] + RANKS[row] + 'o'
+}
 
 export const ALL_HAND_IDS: HandId[] = (() => {
   const ids: HandId[] = []

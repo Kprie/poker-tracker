@@ -1,7 +1,7 @@
 import { useCallback, useState } from 'react'
 import { computeIcmEquities } from '../lib/icm'
 import { handIdToCombos } from '../lib/cards'
-import { buildCallingRange, computeEquityMC, computeIcmScenarios, VILLAIN_COMBOS } from '../lib/equity'
+import { buildCallingRange, computeEquityMC, computeIcmScenarios, weightedPushEv, VILLAIN_COMBOS } from '../lib/equity'
 import type { EquityResult, IcmScenarios } from '../lib/equity'
 import { solveNash, computeIcmDeltas } from '../lib/nashSolver'
 import type { NashResult, NashHandResult } from '../lib/nashSolver'
@@ -17,12 +17,13 @@ import {
   getHandEvTableData, getHandEvChartData, getRangeCorrelationData,
 } from '../lib/chartData'
 import type { HandEvTableEntry, HandEvPoint, RangeCorrelationPoint } from '../lib/chartData'
-import { availablePositions, ALL_HAND_IDS } from '../data/pushFoldData'
+import { availablePositions, ALL_HAND_IDS, RANKS, getHandId } from '../data/pushFoldData'
 import type { ActionType, HandId, Position } from '../data/pushFoldData'
 import { HandEvTable, HandEvTableLegend } from './HandEvTable'
 import { HandEvChart } from './HandEvChart'
 import { RangeCorrelationChart } from './RangeCorrelationChart'
 import { PokerTable } from './PokerTable'
+import { fmtEquity, fmtEquityDelta } from '../lib/format'
 
 // ─── Typen ────────────────────────────────────────────────────────────────────
 
@@ -275,14 +276,8 @@ export function SpotAnalyzer(): JSX.Element {
 
   const totalPayout = payoutInputs.slice(0, paidPlaces).reduce((s, p) => s + (parseFloat(p) || 0), 0)
 
-  function fmtEq(v: number): string {
-    if (totalPayout > 0) return v.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €'
-    return v.toLocaleString('de-DE', { maximumFractionDigits: 4 })
-  }
-  function fmtDelta(v: number): string {
-    const a = fmtEq(Math.abs(v))
-    return v >= 0 ? `+${a}` : `-${a}`
-  }
+  const fmtEq    = (v: number): string => fmtEquity(v, totalPayout)
+  const fmtDelta = (v: number): string => fmtEquityDelta(v, totalPayout)
 
   const selectedNash = result ? result.nashResult.pushRange.get(result.handId) : null
 
@@ -619,13 +614,11 @@ export function SpotAnalyzer(): JSX.Element {
 
                     {/* Gewichteter Push-EV */}
                     {result.equity && selectedNash && (() => {
-                      const { fold, pushWinBlinds, pushCallWin, pushCallLose } = result.icm!
                       const callCombos = [...result.nashResult.callRange.values()]
                         .filter(r => r.ev > 0)
                         .reduce((s, r) => s + handIdToCombos(r.handId).length, 0)
                       const pCall = Math.min(1, callCombos / VILLAIN_COMBOS)
-                      const eq    = selectedNash.equity
-                      const ev    = (1-pCall)*(pushWinBlinds-fold) + pCall*eq*(pushCallWin-fold) + pCall*(1-eq)*(pushCallLose-fold)
+                      const ev    = weightedPushEv(result.icm!, pCall, selectedNash.equity)
                       return (
                         <div className="mt-3 flex items-center justify-between rounded-lg bg-white/[0.03] px-3 py-2">
                           <span className="text-[10px] text-slate-500">Gewichteter Push-EV</span>
@@ -687,14 +680,6 @@ export function SpotAnalyzer(): JSX.Element {
 }
 
 // ─── Hilfs-Render-Komponenten ─────────────────────────────────────────────────
-
-const RANKS = ['A','K','Q','J','T','9','8','7','6','5','4','3','2'] as const
-
-function getHandId(row: number, col: number): HandId {
-  if (row === col) return RANKS[row] + RANKS[row]
-  if (row < col)  return RANKS[row] + RANKS[col] + 's'
-  return RANKS[col] + RANKS[row] + 'o'
-}
 
 function SimpleHandGrid({ selected, onSelect, nashResult }: {
   selected: HandId | null

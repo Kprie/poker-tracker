@@ -1,5 +1,6 @@
 import type { HandEvTableEntry } from '../lib/chartData'
 import type { HandId } from '../data/pushFoldData'
+import { RANKS, getHandId } from '../data/pushFoldData'
 
 // ─── Farb-Encoding ────────────────────────────────────────────────────────────
 
@@ -26,15 +27,6 @@ function evLabel(ev: number): string {
   return (ev > 0 ? '+' : '') + ev.toFixed(3)
 }
 
-// ─── Konstanten ───────────────────────────────────────────────────────────────
-
-const RANKS = ['A', 'K', 'Q', 'J', 'T', '9', '8', '7', '6', '5', '4', '3', '2'] as const
-
-function getHandId(row: number, col: number): HandId {
-  if (row === col) return RANKS[row] + RANKS[row]
-  if (row < col)  return RANKS[row] + RANKS[col] + 's'
-  return RANKS[col] + RANKS[row] + 'o'
-}
 
 // ─── Legende ──────────────────────────────────────────────────────────────────
 

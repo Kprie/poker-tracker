@@ -21,12 +21,13 @@
     "verify:consistency": "node scripts/run-verify.mjs scripts/verify-consistency.mjs",
     "verify:positions": "node scripts/run-verify.mjs scripts/verify-positions.mjs",
     "verify:betev": "node scripts/run-verify.mjs scripts/verify-betev.mjs",
+    "verify:pushev": "node scripts/run-verify.mjs scripts/verify-pushev.mjs",
     "verify:icmplus": "node scripts/run-verify.mjs scripts/verify-icmplus.mjs",
     "verify:equitylab": "node scripts/run-verify.mjs scripts/verify-equitylab.mjs",
     "verify:trackstats": "node scripts/run-verify.mjs scripts/verify-trackstats.mjs",
     "verify:chipstats": "node scripts/run-verify.mjs scripts/verify-chipstats.mjs",
     "verify:export": "node scripts/run-verify.mjs scripts/verify-export.mjs",
-    "verify": "npm run verify:icm && npm run verify:b6 && npm run verify:sidepots && npm run verify:multiway && npm run verify:multiwayev && npm run verify:multiwaysolver && npm run verify:consistency && npm run verify:positions && npm run verify:betev && npm run verify:icmplus && npm run verify:equitylab && npm run verify:trackstats && npm run verify:chipstats && npm run verify:export"
+    "verify": "npm run verify:icm && npm run verify:b6 && npm run verify:sidepots && npm run verify:multiway && npm run verify:multiwayev && npm run verify:multiwaysolver && npm run verify:consistency && npm run verify:positions && npm run verify:betev && npm run verify:pushev && npm run verify:icmplus && npm run verify:equitylab && npm run verify:trackstats && npm run verify:chipstats && npm run verify:export"
   },
   "dependencies": {
     "@fontsource-variable/geist": "^5.2.9",

@@ -152,6 +152,21 @@ export function computeIcmScenarios(
 }
 
 /**
+ * Gewichteter Push-EV als Delta zur Fold-Line, aus den vier ICM-Szenarien.
+ *
+ * @param sc         Die vier Szenario-Equities (Fold / Push-durch / Call-Win / Call-Lose).
+ * @param pCall      Wahrscheinlichkeit (0–1), dass Villain callt.
+ * @param heroEquity Heros Showdown-Equity (0–1), falls gecallt wird.
+ * @returns EV-Differenz zur Fold-Line in Payout-Einheiten (positiv = Push besser als Fold).
+ */
+export function weightedPushEv(sc: IcmScenarios, pCall: number, heroEquity: number): number {
+  const { fold, pushWinBlinds, pushCallWin, pushCallLose } = sc
+  return (1 - pCall) * (pushWinBlinds - fold)
+    + pCall * heroEquity * (pushCallWin - fold)
+    + pCall * (1 - heroEquity) * (pushCallLose - fold)
+}
+
+/**
  * Baut die vier chip-erhaltenden Stack-Konfigurationen für die Push/Fold-Szenarien
  * aus Sicht von `dm` (Entscheider) gegen `op` (Caller). Gemeinsame Quelle für
  * {@link computeIcmScenarios} und computeIcmDeltas (nashSolver) — garantiert ein

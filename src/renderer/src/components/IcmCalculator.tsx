@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { computeIcmEquities, convertEquities } from '../lib/icm'
 import type { EvMode } from '../lib/icm'
+import { inputCls, selectCls } from '../lib/formStyles'
 
 export interface IcmResult {
   equities: number[]
@@ -54,9 +55,6 @@ function defaultPayoutInputs(paid: number): string[] {
   if (paid === 3) return ['50', '30', '20']
   return Array.from({ length: paid }, () => '')
 }
-
-const inputCls = 'bg-surface border border-white/10 rounded-lg px-3 py-1.5 text-sm text-text tabnum focus:outline-none focus:ring-1 focus:ring-accent w-full'
-const selectCls = 'bg-surface border border-white/10 rounded-lg px-3 py-1.5 text-sm text-text focus:outline-none focus:ring-1 focus:ring-accent'
 
 export function IcmCalculator({ onResult }: Props): JSX.Element {
   const [playerCount, setPlayerCount] = useState(3)

@@ -1,17 +1,9 @@
 import type { ActionType, HandEntry, HandId } from '../data/pushFoldData'
-import { ALL_HAND_IDS } from '../data/pushFoldData'
+import { ALL_HAND_IDS, RANKS, getHandId } from '../data/pushFoldData'
 
 interface Props {
   data: Record<HandId, HandEntry | null>
   action?: ActionType
-}
-
-const RANKS = ['A', 'K', 'Q', 'J', 'T', '9', '8', '7', '6', '5', '4', '3', '2'] as const
-
-function getHandId(row: number, col: number): HandId {
-  if (row === col) return RANKS[row] + RANKS[row]
-  if (row < col) return RANKS[row] + RANKS[col] + 's'
-  return RANKS[col] + RANKS[row] + 'o'
 }
 
 function cellBg(entry: HandEntry | null | undefined): string {

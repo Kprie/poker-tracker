@@ -4,11 +4,13 @@ import { handIdToCombos } from '../lib/cards'
 import { computeIcmEquities } from '../lib/icm'
 import { computeExactEquity, bestHandScore, handRankName } from '../lib/exactEquity'
 import type { ExactEquityResult } from '../lib/exactEquity'
-import { computeEquityMC, computeIcmScenarios } from '../lib/equity'
+import { computeEquityMC, computeIcmScenarios, weightedPushEv } from '../lib/equity'
 import type { RangeCombo } from '../lib/equity'
 import { defaultPosts } from '../lib/nashSolver'
 import { CardPicker, cardLabel, cardColorClass } from './CardPicker'
 import { ALL_HAND_IDS, handStrength } from '../data/pushFoldData'
+import { inputCls, selectCls } from '../lib/formStyles'
+import { fmtEquity, fmtEquityDelta } from '../lib/format'
 
 // ─── Typen ────────────────────────────────────────────────────────────────────
 
@@ -72,11 +74,6 @@ function buildVillainRange(widthPct: number, blocked: Card[]): RangeCombo[] {
   return result
 }
 
-// ─── Stil-Konstanten ─────────────────────────────────────────────────────────
-
-const selectCls = 'bg-surface border border-white/10 rounded-lg px-3 py-1.5 text-sm text-text focus:outline-none focus:ring-1 focus:ring-accent'
-const inputCls  = 'bg-surface border border-white/10 rounded-lg px-3 py-1.5 text-sm text-text tabnum focus:outline-none focus:ring-1 focus:ring-accent w-full'
-
 // ─── Karten-Slot ──────────────────────────────────────────────────────────────
 
 function CardSlot({ card, label, active, onClick, clearable, onClear }: {
@@ -129,15 +126,7 @@ function IcmTable({ result }: { result: SimResult }): JSX.Element | null {
     ? result.exactEquity.win + result.exactEquity.tie * 0.5
     : result.rangeEquity?.hero ?? 0.5
 
-  const evPush =
-    (1 - pCall) * (pushWinBlinds - fold) +
-    pCall * heroEq * (pushCallWin - fold) +
-    pCall * (1 - heroEq) * (pushCallLose - fold)
-
-  function fmt(v: number): string {
-    if (totalPayout > 0) return v.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €'
-    return v.toLocaleString('de-DE', { maximumFractionDigits: 4 })
-  }
+  const evPush = weightedPushEv({ fold, pushWinBlinds, pushCallWin, pushCallLose }, pCall, heroEq)
 
   const rows = [
     { label: 'Fold',                       val: fold },
@@ -163,9 +152,9 @@ function IcmTable({ result }: { result: SimResult }): JSX.Element | null {
             return (
               <tr key={i} className="border-b border-white/5">
                 <td className="py-2 px-2 text-text text-sm">{row.label}</td>
-                <td className="py-2 px-2 text-right tabnum text-text">{fmt(row.val)}</td>
+                <td className="py-2 px-2 text-right tabnum text-text">{fmtEquity(row.val, totalPayout)}</td>
                 <td className={`py-2 px-2 text-right tabnum ${i === 0 ? 'text-muted' : delta >= 0 ? 'text-profit' : 'text-loss'}`}>
-                  {i === 0 ? '—' : `${delta >= 0 ? '+' : ''}${fmt(delta)}`}
+                  {i === 0 ? '—' : fmtEquityDelta(delta, totalPayout)}
                 </td>
               </tr>
             )
@@ -182,7 +171,7 @@ function IcmTable({ result }: { result: SimResult }): JSX.Element | null {
           </span>
         </div>
         <span className={`text-sm font-semibold tabnum ${evPush >= 0 ? 'text-profit' : 'text-loss'}`}>
-          {evPush >= 0 ? '+' : ''}{fmt(evPush)}
+          {fmtEquityDelta(evPush, totalPayout)}
         </span>
       </div>
     </div>

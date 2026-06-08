@@ -2,12 +2,11 @@ import { useMemo, useState } from 'react'
 import {
   requiredEquityCall, breakEvenFoldFreq, callEvChips, betEv, sizingComparison,
 } from '../lib/betEv'
+import { inputCls } from '../lib/formStyles'
 
 // ─── Pot-Odds- & Bet-EV-Rechner (Turnier, Chip-EV) ────────────────────────────
 // Einheit: BB. Rein analytisch. ICM-Aufschlag (Risk Premium) als manuelle Eingabe
 // — exakte ICM-Schwellen liefert der Spot-Analyser.
-
-const inputCls = 'bg-surface border border-white/10 rounded-lg px-3 py-1.5 text-sm text-text tabnum focus:outline-none focus:ring-1 focus:ring-accent w-full'
 
 function num(v: string, fallback = 0): number {
   const n = parseFloat(v.replace(',', '.'))

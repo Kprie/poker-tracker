@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import type { ActionType, Position } from '../data/pushFoldData'
 import { availablePositions, findSpot } from '../data/pushFoldData'
 import { HandGrid, HandGridLegend } from './HandGrid'
+import { selectCls } from '../lib/formStyles'
 
 // ─── Gespeicherte Spots (localStorage) ───────────────────────────────────────
 
@@ -40,8 +41,6 @@ const ACTION_LABELS: Record<ActionType, string> = {
   call: 'Call gegen Push',
   overcall: 'Overcall',
 }
-
-const selectCls = 'bg-surface border border-white/10 rounded-lg px-3 py-1.5 text-sm text-text focus:outline-none focus:ring-1 focus:ring-accent'
 
 // ─── Komponente ───────────────────────────────────────────────────────────────
 

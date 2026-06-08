@@ -1,7 +1,6 @@
 import { useMemo, useState } from 'react'
 import { bountyShoveEv } from '../lib/bounty'
-
-const inputCls = 'bg-surface border border-white/10 rounded-lg px-3 py-1.5 text-sm text-text tabnum focus:outline-none focus:ring-1 focus:ring-accent w-full'
+import { inputCls } from '../lib/formStyles'
 
 function num(v: string, f = 0): number {
   const n = parseFloat(v.replace(',', '.'))
