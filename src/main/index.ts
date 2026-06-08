@@ -14,15 +14,15 @@ function createWindow(): void {
     title: 'Proker',
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
-      sandbox: false,
+      sandbox: true,
       contextIsolation: true
     }
   })
 
   win.on('ready-to-show', () => win.show())
 
-  win.webContents.setWindowOpenHandler((details) => {
-    shell.openExternal(details.url)
+  win.webContents.setWindowOpenHandler(({ url }) => {
+    if (/^https?:\/\//i.test(url)) shell.openExternal(url)
     return { action: 'deny' }
   })
 
