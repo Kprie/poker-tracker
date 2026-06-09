@@ -24,6 +24,7 @@ import { HandEvChart } from './HandEvChart'
 import { RangeCorrelationChart } from './RangeCorrelationChart'
 import { PokerTable } from './PokerTable'
 import { fmtEquity, fmtEquityDelta } from '../lib/format'
+import { useToolContext, useSpotStore } from '../lib/spotStore'
 
 // ─── Typen ────────────────────────────────────────────────────────────────────
 
@@ -111,7 +112,6 @@ export function SpotAnalyzer(): JSX.Element {
   // Situation
   const [players,      setPlayers]      = useState<PlayerCount>(2)
   const [position,     setPosition]     = useState<Position>('SB')
-  const [stackBb,      setStackBb]      = useState(10)
   const [stackInput,   setStackInput]   = useState('10')
   const [bbSize,       setBbSize]       = useState(200)
   const [ante,         setAnte]         = useState(0)
@@ -142,9 +142,28 @@ export function SpotAnalyzer(): JSX.Element {
   const [precompPct,     setPrecompPct]     = useState(cachedPairCount() / TOTAL_PAIR_COUNT)
   const [precompRunning, setPrecompRunning] = useState(false)
 
-  const positions = availablePositions(players)
+  // Eingabemodus + aufgelöster Turnier-Kontext (geteilt oder lokal).
+  const inputMode = useSpotStore((s) => s.mode)
+  const ctx = useToolContext({
+    players,
+    stacks,
+    payoutInputs,
+    bbSize,
+    ante,
+    setPlayers: (n) => handlePlayersChange(n as PlayerCount),
+    setStacks,
+    setPayoutInputs,
+    setBbSize,
+    setAnte,
+  })
+  const paidPlacesResolved = inputMode === 'shared' ? ctx.payoutInputs.length : paidPlaces
+  // Hero-Stack in BB, abgeleitet aus dem aufgelösten Kontext (löst die frühere
+  // stackBb-↔-stacks[0]-Kopplung auf; eine Quelle = ctx.stacks[0]).
+  const stackBbView = ctx.bbSize > 0 ? (ctx.stacks[0] ?? 0) / ctx.bbSize : 0
+
+  const positions = availablePositions(ctx.players)
   // Positions-Layout: aktive Sitze (Hero + Responder hinter Hero) und Posts.
-  const layout = seatLayoutForPosition(position, players, bbSize, ante)
+  const layout = seatLayoutForPosition(position, ctx.players, ctx.bbSize, ctx.ante)
   // Effektive Posts: Nutzer-Override oder positionsabhängige Standard-Struktur.
   const posts = postsOverride ?? layout.posts
 
@@ -152,19 +171,19 @@ export function SpotAnalyzer(): JSX.Element {
 
   function handlePlayersChange(n: PlayerCount): void {
     setPlayers(n)
-    const newStacks = Array.from({ length: n }, (_, i) => stacks[i] ?? Math.round(stackBb * bbSize))
+    const newStacks = Array.from({ length: n }, (_, i) => stacks[i] ?? Math.round(stackBbView * bbSize))
     setStacks(newStacks)
     const pos = availablePositions(n)
     if (!pos.includes(position)) setPosition(pos[0])
     setPostsOverride(null)  // Standard-Posts für neue Spielerzahl
   }
 
+  // Schreibt den Hero-Stack (BB) in den aufgelösten Kontext (Index 0).
   function handleStackBbChange(val: number): void {
-    setStackBb(val)
     setStackInput(String(val))
-    const updated = [...stacks]
-    updated[0] = Math.round(val * bbSize)
-    setStacks(updated)
+    const updated = [...ctx.stacks]
+    updated[0] = Math.round(val * ctx.bbSize)
+    ctx.setStacks(updated)
   }
 
   async function handlePrecompute(): Promise<void> {
@@ -182,14 +201,13 @@ export function SpotAnalyzer(): JSX.Element {
     setNashLoading(true)
     setNashReady(null)
     clearCharts()
-    const heroChips  = Math.round(stackBb * bbSize)
-    const fullStacks = [heroChips, ...stacks.slice(1, players)]
-    const payouts    = payoutInputs.slice(0, paidPlaces).map(p => parseFloat(p) || 0)
+    const fullStacks = ctx.stacks.slice(0, ctx.players)
+    const payouts    = ctx.payoutInputs.slice(0, paidPlacesResolved).map(p => parseFloat(p) || 0)
 
-    if (players === 2) {
+    if (ctx.players === 2) {
       // HU: schneller Pfad im Main Thread (warmer Equity-Cache).
       setTimeout(() => {
-        const r = solveNash({ stacks: fullStacks, payouts, bbSize, ante, posts })
+        const r = solveNash({ stacks: fullStacks, payouts, bbSize: ctx.bbSize, ante: ctx.ante, posts })
         setNashReady(r)
         setNashLoading(false)
       }, 0)
@@ -200,7 +218,7 @@ export function SpotAnalyzer(): JSX.Element {
         .then(res => { setNashReady(adaptMultiway(res)); setNashLoading(false) })
         .catch(err => { console.error('Multiway-Solver-Fehler:', err); setNashLoading(false) })
     }
-  }, [stackBb, bbSize, stacks, players, payoutInputs, paidPlaces, ante, posts, position])
+  }, [ctx.stacks, ctx.bbSize, ctx.players, ctx.payoutInputs, paidPlacesResolved, ctx.ante, posts, position, layout])
 
   async function handleAnalyze(): Promise<void> {
     if (!heroHand) return
@@ -208,17 +226,16 @@ export function SpotAnalyzer(): JSX.Element {
     setResult(null)
     clearCharts()
 
-    const payouts    = payoutInputs.slice(0, paidPlaces).map(p => parseFloat(p) || 0)
-    const heroChips  = Math.round(stackBb * bbSize)
-    const fullStacks = [heroChips, ...stacks.slice(1, players)]
+    const payouts    = ctx.payoutInputs.slice(0, paidPlacesResolved).map(p => parseFloat(p) || 0)
+    const fullStacks = ctx.stacks.slice(0, ctx.players)
     const callerIdx  = 1
 
     // Nash-Ranges aus EINER Quelle: HU exakt (Main-Thread), n>2 über denselben
     // multiway-exakten Worker wie „Nash-Ranges laden" — beide Buttons konsistent.
     let nashResult: NashResult
     try {
-      if (players === 2) {
-        nashResult = solveNash({ stacks: fullStacks, payouts, bbSize, ante, posts, callerIdx })
+      if (ctx.players === 2) {
+        nashResult = solveNash({ stacks: fullStacks, payouts, bbSize: ctx.bbSize, ante: ctx.ante, posts, callerIdx })
       } else {
         const res = await solveMultiwaySpotAsync(layout.active, { stacks: fullStacks, payouts, posts, evIterations: 800, maxIterations: 8, damping: 0.5 })
         nashResult = adaptMultiway(res)
@@ -237,7 +254,7 @@ export function SpotAnalyzer(): JSX.Element {
     if (heroCombos.length > 0) {
       const heroCards = heroCombos[0]
       const syntheticSpot = {
-        players, position, stackBb, action: 'call' as ActionType,
+        players: ctx.players, position, stackBb: stackBbView, action: 'call' as ActionType,
         hands: Object.fromEntries(
           ALL_HAND_IDS.map(id => {
             const r = nashResult.callRange.get(id)
@@ -274,7 +291,7 @@ export function SpotAnalyzer(): JSX.Element {
 
   // ── Format ──────────────────────────────────────────────────────────────────
 
-  const totalPayout = payoutInputs.slice(0, paidPlaces).reduce((s, p) => s + (parseFloat(p) || 0), 0)
+  const totalPayout = ctx.payoutInputs.slice(0, paidPlacesResolved).reduce((s, p) => s + (parseFloat(p) || 0), 0)
 
   const fmtEq    = (v: number): string => fmtEquity(v, totalPayout)
   const fmtDelta = (v: number): string => fmtEquityDelta(v, totalPayout)
@@ -295,6 +312,7 @@ export function SpotAnalyzer(): JSX.Element {
 
       {/* ── Top Controls ─────────────────────────────────────────────────── */}
       <div className="flex flex-wrap gap-3 items-end px-1">
+        {inputMode === 'single' && (
         <div className="flex flex-col gap-1">
           <label className="text-[10px] font-medium uppercase tracking-wider text-slate-500">Spieler</label>
           <select className={selectCls} value={players}
@@ -302,6 +320,7 @@ export function SpotAnalyzer(): JSX.Element {
             {([2,3,4,5,6,7,8,9] as PlayerCount[]).map(n => <option key={n} value={n}>{n}</option>)}
           </select>
         </div>
+        )}
 
         <div className="flex flex-col gap-1">
           <label className="text-[10px] font-medium uppercase tracking-wider text-slate-500">Position</label>
@@ -311,10 +330,12 @@ export function SpotAnalyzer(): JSX.Element {
           </select>
         </div>
 
+        {inputMode === 'single' && (
+        <>
         <div className="flex flex-col gap-1">
           <label className="text-[10px] font-medium uppercase tracking-wider text-slate-500">Stack (BB)</label>
           <div className="flex items-center gap-2">
-            <input type="range" min={2} max={25} step={0.5} value={stackBb}
+            <input type="range" min={2} max={25} step={0.5} value={stackBbView}
               onChange={e => handleStackBbChange(parseFloat(e.target.value))}
               className="w-24 accent-accent cursor-pointer" />
             <input type="number" min={2} max={25} step={0.5} value={stackInput}
@@ -334,6 +355,8 @@ export function SpotAnalyzer(): JSX.Element {
           <input type="number" min={0} className={`${inputCls} w-20`} value={ante}
             onChange={e => { setAnte(parseInt(e.target.value, 10) || 0); setPostsOverride(null) }} />
         </div>
+        </>
+        )}
       </div>
 
       {/* ── Main Two-Column Layout ────────────────────────────────────────── */}
@@ -345,16 +368,17 @@ export function SpotAnalyzer(): JSX.Element {
           {/* Poker-Tisch */}
           <div className="rounded-2xl overflow-hidden border border-white/8 bg-slate-950/60 p-4 shadow-2xl">
             <PokerTable
-              players={players}
+              players={ctx.players}
               heroPosition={position}
               heroHand={heroHand}
-              stacks={stacks}
-              bbSize={bbSize}
+              stacks={ctx.stacks}
+              bbSize={ctx.bbSize}
               nashResult={nashReady}
             />
           </div>
 
-          {/* Stacks */}
+          {/* Stacks — nur im Einzelmodus; im Gemeinsam-Modus kommt der Stack aus dem Spot-Kontext */}
+          {inputMode === 'single' && (
           <div className="rounded-xl border border-white/8 bg-slate-900/50 p-3">
             <p className="text-[10px] font-medium uppercase tracking-wider text-slate-500 mb-2">
               Stacks — Index 0 = Hero
@@ -367,12 +391,13 @@ export function SpotAnalyzer(): JSX.Element {
                   </label>
                   <input type="number" min={1}
                     className={`${inputCls} ${i === 0 ? 'border-accent/30' : ''} w-full`}
-                    value={stacks[i] ?? Math.round(stackBb * bbSize)}
+                    value={stacks[i] ?? Math.round(stackBbView * bbSize)}
                     onChange={e => { const u = [...stacks]; u[i] = parseInt(e.target.value, 10) || 0; setStacks(u) }} />
                 </div>
               ))}
             </div>
           </div>
+          )}
 
           {/* Posts (Blind + Ante) je Sitz — multiway-relevant */}
           <div className="rounded-xl border border-white/8 bg-slate-900/50 p-3">
@@ -387,7 +412,7 @@ export function SpotAnalyzer(): JSX.Element {
               )}
             </div>
             <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
-              {Array.from({ length: players }, (_, i) => (
+              {Array.from({ length: ctx.players }, (_, i) => (
                 <div key={i} className="flex flex-col gap-1">
                   <label className="text-[10px] text-slate-500">
                     {i === 0 ? <span className="text-accent font-semibold">Hero</span> : `Sp. ${i + 1}`}
@@ -400,7 +425,7 @@ export function SpotAnalyzer(): JSX.Element {
               ))}
             </div>
             <p className="text-[10px] text-slate-600 mt-1.5">
-              {players > 2
+              {ctx.players > 2
                 ? `Position ${position}: ${layout.nBehind} Spieler hinter Hero handeln noch; frühere Sitze gelten als gefoldet (Posts = Dead Money). SB/BB auf den letzten aktiven Sitzen.`
                 : 'Heads-Up: Sitz 0 (Hero/SB) jammt gegen BB. Stacks gelten vor dem Posten.'}
             </p>
@@ -408,6 +433,8 @@ export function SpotAnalyzer(): JSX.Element {
 
           {/* Auszahlungen + Aktions-Buttons */}
           <div className="rounded-xl border border-white/8 bg-slate-900/50 p-3 flex flex-wrap gap-3 items-end">
+            {inputMode === 'single' && (
+            <>
             <div className="flex flex-col gap-1">
               <label className="text-[10px] font-medium uppercase tracking-wider text-slate-500">Bezahlte Plätze</label>
               <select className={selectCls} value={paidPlaces}
@@ -426,6 +453,8 @@ export function SpotAnalyzer(): JSX.Element {
                   onChange={e => { const u = [...payoutInputs]; u[i] = e.target.value; setPayoutInputs(u) }} />
               </div>
             ))}
+            </>
+            )}
 
             <div className="flex-1" />
 
@@ -506,7 +535,7 @@ export function SpotAnalyzer(): JSX.Element {
           {/* Result-Header */}
           <div className="px-5 py-4 border-b border-white/8 flex flex-wrap items-center gap-4 bg-slate-900/40">
             <span className="text-xl font-bold font-mono text-white">{result.handId}</span>
-            <span className="text-xs text-slate-400">{players}-handed · {position} · {stackBb} BB</span>
+            <span className="text-xs text-slate-400">{ctx.players}-handed · {position} · {stackBbView.toFixed(1)} BB</span>
 
             {selectedNash && (
               <>

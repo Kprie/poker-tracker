@@ -11,6 +11,7 @@ import { CardPicker, cardLabel, cardColorClass } from './CardPicker'
 import { ALL_HAND_IDS, handStrength } from '../data/pushFoldData'
 import { inputCls, selectCls } from '../lib/formStyles'
 import { fmtEquity, fmtEquityDelta } from '../lib/format'
+import { useToolContext, useSpotStore } from '../lib/spotStore'
 
 // ─── Typen ────────────────────────────────────────────────────────────────────
 
@@ -203,6 +204,31 @@ export function RoundSimulator(): JSX.Element {
   const [loading, setLoading] = useState(false)
   const [result,  setResult]  = useState<SimResult | null>(null)
 
+  // Eingabemodus + aufgelöster Turnier-Kontext (geteilt oder lokal).
+  const inputMode = useSpotStore((s) => s.mode)
+
+  // Setzt die Spieleranzahl und passt die Stacks entsprechend an (wie der lokale Select-onChange).
+  function handlePlayersChange(n: number): void {
+    setPlayers(n)
+    setStacks((prev) => Array.from({ length: n }, (_, i) => prev[i] ?? 1000))
+  }
+
+  const ctx = useToolContext({
+    players,
+    stacks,
+    payoutInputs,
+    bbSize,
+    ante,
+    setPlayers: handlePlayersChange,
+    setStacks,
+    setPayoutInputs,
+    setBbSize,
+    setAnte,
+  })
+
+  // Im geteilten Modus bestimmt die Länge der Auszahlungen die bezahlten Plätze.
+  const paidPlacesResolved = inputMode === 'shared' ? ctx.payoutInputs.length : paidPlaces
+
   // ── Karten-Verwaltung ─────────────────────────────────────────────────────
 
   function allUsedCards(): Card[] {
@@ -328,8 +354,8 @@ export function RoundSimulator(): JSX.Element {
     setResult(null)
 
     setTimeout(() => {
-      const payouts    = payoutInputs.slice(0, paidPlaces).map(p => parseFloat(p) || 0)
-      const fullStacks = stacks.slice(0, players)
+      const payouts    = ctx.payoutInputs.slice(0, paidPlacesResolved).map(p => parseFloat(p) || 0)
+      const fullStacks = ctx.stacks.slice(0, ctx.players)
       const n          = fullStacks.length
       const callerIdx  = 1
 
@@ -366,7 +392,7 @@ export function RoundSimulator(): JSX.Element {
       // ── ICM-Szenarien (nur Preflop) — gemeinsames chip-erhaltendes Modell ──
       // Identische Quelle wie SpotAnalyzer (computeIcmScenarios). Posts aus der
       // Standard-Struktur (SB/BB auf den letzten zwei Sitzen, alle Ante).
-      const posts = defaultPosts(n, bbSize, ante)
+      const posts = defaultPosts(n, ctx.bbSize, ctx.ante)
       const allAlive = fullStacks.length === n && fullStacks.every(s => s > 0)
       const sc = allAlive
         ? computeIcmScenarios(fullStacks, payouts, posts, callerIdx, computeIcmEquities)
@@ -409,6 +435,8 @@ export function RoundSimulator(): JSX.Element {
   return (
     <div className="card p-5 md:p-6 flex flex-col gap-6">
 
+      {inputMode === 'single' && (
+      <>
       {/* ── Situation ──────────────────────────────────────────────────────── */}
       <div className="flex flex-wrap gap-4 items-end">
         <div className="flex flex-col gap-1">
@@ -466,6 +494,8 @@ export function RoundSimulator(): JSX.Element {
           ))}
         </div>
       </div>
+      </>
+      )}
 
       {/* ── Karten-Eingabe ──────────────────────────────────────────────────── */}
       <div className="flex flex-col gap-4">
