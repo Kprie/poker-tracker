@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { computeIcmEquities } from '../lib/icm'
 import { handIdToCombos } from '../lib/cards'
 import { buildCallingRange, computeEquityMC, computeIcmScenarios, weightedPushEv, VILLAIN_COMBOS } from '../lib/equity'
@@ -166,6 +166,18 @@ export function SpotAnalyzer(): JSX.Element {
   const layout = seatLayoutForPosition(position, ctx.players, ctx.bbSize, ctx.ante)
   // Effektive Posts: Nutzer-Override oder positionsabhängige Standard-Struktur.
   const posts = postsOverride ?? layout.posts
+
+  // Reconciliation für den Modus „Gemeinsam": Ändert das Panel die Spielerzahl/BB/Ante,
+  // laufen Position und Posts-Override nicht über die lokalen Handler — daher hier angleichen
+  // (im Einzelmodus tut handlePlayersChange dasselbe; doppelt ist unschädlich).
+  useEffect(() => {
+    const pos = availablePositions(ctx.players)
+    if (!pos.includes(position)) setPosition(pos[0])
+  }, [ctx.players, position])
+
+  useEffect(() => {
+    setPostsOverride(null)
+  }, [ctx.players, ctx.bbSize, ctx.ante])
 
   // ── Helpers ─────────────────────────────────────────────────────────────────
 
