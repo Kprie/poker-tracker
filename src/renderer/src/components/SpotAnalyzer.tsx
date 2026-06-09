@@ -215,11 +215,18 @@ export function SpotAnalyzer(): JSX.Element {
     setPrecompRunning(false)
   }
 
+  // Verhindert das Einfrieren des Main-Threads: Der HU-solveNash berechnet bei kaltem
+  // Equity-Cache ~3000 Paare *synchron* inline. Stattdessen vorher die nicht-blockierende,
+  // chunked Vorberechnung (Fortschrittsbalken) abwarten — danach ist solveNash instant.
+  async function ensureEquityWarm(): Promise<void> {
+    if (precompPct < 0.99) await handlePrecompute()
+  }
+
   function clearCharts(): void {
     setEvTableData(null); setEvChartData(null); setRangeData(null); setNashPoint(null)
   }
 
-  const handleLoadNash = useCallback(() => {
+  const handleLoadNash = useCallback(async () => {
     setNashLoading(true)
     setNashReady(null)
     clearCharts()
@@ -227,7 +234,9 @@ export function SpotAnalyzer(): JSX.Element {
     const payouts    = ctx.payoutInputs.slice(0, paidPlacesResolved).map(p => parseFloat(p) || 0)
 
     if (ctx.players === 2) {
-      // HU: schneller Pfad im Main Thread (warmer Equity-Cache).
+      // HU: solveNash läuft synchron im Main Thread. Bei kaltem Cache zuerst
+      // nicht-blockierend vorberechnen (Fortschritt statt Freeze), dann lösen.
+      if (precompPct < 0.99) await ensureEquityWarm()
       setTimeout(() => {
         const r = solveNash({ stacks: fullStacks, payouts, bbSize: ctx.bbSize, ante: ctx.ante, posts })
         setNashReady(r)
@@ -240,13 +249,17 @@ export function SpotAnalyzer(): JSX.Element {
         .then(res => { setNashReady(adaptMultiway(res)); setNashLoading(false) })
         .catch(err => { console.error('Multiway-Solver-Fehler:', err); setNashLoading(false) })
     }
-  }, [ctx.stacks, ctx.bbSize, ctx.players, ctx.payoutInputs, paidPlacesResolved, ctx.ante, posts, position, layout])
+  }, [ctx.stacks, ctx.bbSize, ctx.players, ctx.payoutInputs, paidPlacesResolved, ctx.ante, posts, position, layout, precompPct])
 
   async function handleAnalyze(): Promise<void> {
     if (!heroHand) return
     setLoading(true)
     setResult(null)
     clearCharts()
+
+    // HU-solveNash läuft synchron auf dem Main-Thread — bei kaltem Cache zuerst
+    // nicht-blockierend vorberechnen, sonst friert das Fenster ein.
+    if (ctx.players === 2 && precompPct < 0.99) await ensureEquityWarm()
 
     const payouts    = ctx.payoutInputs.slice(0, paidPlacesResolved).map(p => parseFloat(p) || 0)
     const fullStacks = ctx.stacks.slice(0, ctx.players)
