@@ -25,6 +25,7 @@ import { RangeCorrelationChart } from './RangeCorrelationChart'
 import { PokerTable } from './PokerTable'
 import { fmtEquity, fmtEquityDelta } from '../lib/format'
 import { useToolContext, useSpotStore } from '../lib/spotStore'
+import { comboToHandId } from '../lib/multiwayEv'
 
 // ─── Typen ────────────────────────────────────────────────────────────────────
 
@@ -178,6 +179,15 @@ export function SpotAnalyzer(): JSX.Element {
   useEffect(() => {
     setPostsOverride(null)
   }, [ctx.players, ctx.bbSize, ctx.ante])
+
+  // Brücke (eine Richtung): vollständige Hero-Karten im geteilten Kontext wählen die
+  // passende Hand-Klasse im Grid vor. SpotAnalyzer schreibt keine konkreten Karten zurück.
+  const sharedHero = useSpotStore((s) => s.heroCards)
+  useEffect(() => {
+    if (inputMode === 'shared' && sharedHero[0] !== null && sharedHero[1] !== null) {
+      setHeroHand(comboToHandId(sharedHero[0], sharedHero[1]))
+    }
+  }, [inputMode, sharedHero])
 
   // ── Helpers ─────────────────────────────────────────────────────────────────
 

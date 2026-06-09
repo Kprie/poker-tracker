@@ -11,7 +11,7 @@ import { CardPicker, cardLabel, cardColorClass } from './CardPicker'
 import { ALL_HAND_IDS, handStrength } from '../data/pushFoldData'
 import { inputCls, selectCls } from '../lib/formStyles'
 import { fmtEquity, fmtEquityDelta } from '../lib/format'
-import { useToolContext, useSpotStore } from '../lib/spotStore'
+import { useToolContext, useHandContext, useSpotStore } from '../lib/spotStore'
 
 // ─── Typen ────────────────────────────────────────────────────────────────────
 
@@ -183,8 +183,8 @@ function IcmTable({ result }: { result: SimResult }): JSX.Element | null {
 
 export function RoundSimulator(): JSX.Element {
   // Karten-State
-  const [heroCards,    setHeroCards]    = useState<[Card | null, Card | null]>([null, null])
-  const [boardCards,   setBoardCards]   = useState<[Card | null, Card | null, Card | null, Card | null, Card | null]>([null, null, null, null, null])
+  const [heroCardsLocal,  setHeroCardsLocal]  = useState<[Card | null, Card | null]>([null, null])
+  const [boardCardsLocal, setBoardCardsLocal] = useState<(Card | null)[]>([null, null, null, null, null])
   const [villainCards, setVillainCards] = useState<[Card | null, Card | null]>([null, null])
   const [activeSlot,   setActiveSlot]   = useState<SlotKey | null>('h0')
 
@@ -228,6 +228,19 @@ export function RoundSimulator(): JSX.Element {
 
   // Im geteilten Modus bestimmt die Länge der Auszahlungen die bezahlten Plätze.
   const paidPlacesResolved = inputMode === 'shared' ? ctx.payoutInputs.length : paidPlaces
+
+  // Hero-Karten + Board aus dem aufgelösten Hand-Kontext (geteilt oder lokal).
+  // Re-Export unter den ursprünglichen Namen, sodass die Karten-Handler unverändert bleiben.
+  const hctx = useHandContext({
+    heroCards: heroCardsLocal,
+    board: boardCardsLocal,
+    setHeroCards: setHeroCardsLocal,
+    setBoard: setBoardCardsLocal,
+  })
+  const heroCards = hctx.heroCards
+  const boardCards = hctx.board
+  const setHeroCards = hctx.setHeroCards
+  const setBoardCards = hctx.setBoard
 
   // ── Karten-Verwaltung ─────────────────────────────────────────────────────
 
@@ -283,7 +296,7 @@ export function RoundSimulator(): JSX.Element {
       setHeroCards(next)
 
     } else if (group === 'board') {
-      const next: [Card | null, Card | null, Card | null, Card | null, Card | null] = [...boardCards]
+      const next: (Card | null)[] = [...boardCards]
       const idx = parseInt(activeSlot[1])
 
       // Karte in anderem Slot vorhanden → dort entfernen
@@ -329,7 +342,7 @@ export function RoundSimulator(): JSX.Element {
       setHeroCards(next)
     } else if (group === 'board') {
       const idx = parseInt(slot[1])
-      const next: [Card | null, Card | null, Card | null, Card | null, Card | null] = [...boardCards]; next[idx] = null
+      const next: (Card | null)[] = [...boardCards]; next[idx] = null
       setBoardCards(next)
     } else {
       const idx = slot === 'v0' ? 0 : 1

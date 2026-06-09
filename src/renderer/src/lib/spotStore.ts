@@ -118,3 +118,29 @@ export function useToolContext(local: ToolContext): ToolContext {
     setAnte,
   }
 }
+
+// ─── Hand/Board-Auflösung ─────────────────────────────────────────────────────
+// Wie useToolContext, aber für Hero-Karten + Board. Voll-Array-Setter, weil beide
+// Equity-Tools die jeweils komplette Hand/Board-Liste neu setzen.
+
+export interface HandContext {
+  heroCards: [Card | null, Card | null]
+  board: (Card | null)[]
+  setHeroCards: (cards: [Card | null, Card | null]) => void
+  setBoard: (b: (Card | null)[]) => void
+}
+
+export function useHandContext(local: HandContext): HandContext {
+  const mode = useSpotStore((s) => s.mode)
+  const heroCards = useSpotStore((s) => s.heroCards)
+  const board = useSpotStore((s) => s.board)
+  const setContext = useSpotStore((s) => s.setContext)
+
+  if (mode === 'single') return local
+  return {
+    heroCards,
+    board,
+    setHeroCards: (cards) => setContext({ heroCards: cards }),
+    setBoard: (b) => setContext({ board: b }),
+  }
+}

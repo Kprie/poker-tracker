@@ -4,6 +4,7 @@ import { multiwayEquityBoard } from '../lib/multiwayEquity'
 import { handClassDistribution, CATEGORY_NAMES } from '../lib/handClass'
 import { detectDraws, drawLabels } from '../lib/draws'
 import { CardPicker, cardLabel, cardColorClass } from './CardPicker'
+import { useHandContext } from '../lib/spotStore'
 
 // ─── Equity-Labor: Multiway-Equity + Handklassen + Draws ──────────────────────
 
@@ -45,26 +46,44 @@ export function EquityLab(): JSX.Element {
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
 
+  // Hand 1 (= Hero) und Board kommen aus dem aufgelösten Hand-Kontext (geteilt oder lokal);
+  // Hände 2–4 bleiben immer lokal.
+  const hctx = useHandContext({
+    heroCards: [hands[0][0] ?? null, hands[0][1] ?? null],
+    board,
+    setHeroCards: (cards) => setHands(prev => { const n = prev.map(r => [...r]); n[0] = [cards[0], cards[1]]; return n }),
+    setBoard,
+  })
+  const getHand = (h: number): (Card | null)[] => (h === 0 ? hctx.heroCards : hands[h])
+  const boardR = hctx.board
+
   const usedCards = (): Card[] => {
     const out: Card[] = []
-    for (let h = 0; h < numHands; h++) for (const c of hands[h]) if (c !== null) out.push(c)
-    for (const c of board) if (c !== null) out.push(c)
+    for (let h = 0; h < numHands; h++) for (const c of getHand(h)) if (c !== null) out.push(c)
+    for (const c of boardR) if (c !== null) out.push(c)
     return out
   }
 
   function currentCard(): Card | null {
-    return active.kind === 'hand' ? hands[active.h][active.c] : board[active.i]
+    return active.kind === 'hand' ? getHand(active.h)[active.c] : boardR[active.i]
   }
 
   function setSlot(card: Card | null): void {
     if (active.kind === 'hand') {
-      const next = hands.map(row => [...row])
-      next[active.h][active.c] = card
-      setHands(next)
+      if (active.h === 0) {
+        // Hand 1 läuft über den (ggf. geteilten) Hero-Kontext.
+        const pair: [Card | null, Card | null] = [hctx.heroCards[0], hctx.heroCards[1]]
+        pair[active.c] = card
+        hctx.setHeroCards(pair)
+      } else {
+        const next = hands.map(row => [...row])
+        next[active.h][active.c] = card
+        setHands(next)
+      }
     } else {
-      const next = [...board]
+      const next = [...boardR]
       next[active.i] = card
-      setBoard(next)
+      hctx.setBoard(next)
     }
   }
 
@@ -85,11 +104,11 @@ export function EquityLab(): JSX.Element {
     setError(null)
     const complete: [Card, Card][] = []
     for (let h = 0; h < numHands; h++) {
-      const [a, b] = hands[h]
+      const [a, b] = getHand(h)
       if (a === null || b === null) { setError(`Hand ${h + 1} unvollständig.`); return }
       complete.push([a, b])
     }
-    const boardCards = board.filter((c): c is Card => c !== null)
+    const boardCards = boardR.filter((c): c is Card => c !== null)
     if (![0, 3, 4, 5].includes(boardCards.length)) { setError('Board muss 0, 3, 4 oder 5 Karten haben.'); return }
 
     setLoading(true)
@@ -116,7 +135,8 @@ export function EquityLab(): JSX.Element {
 
   function reset(): void {
     setHands(Array.from({ length: MAX_HANDS }, () => [null, null]))
-    setBoard([null, null, null, null, null])
+    hctx.setHeroCards([null, null])
+    hctx.setBoard([null, null, null, null, null])
     setActive({ kind: 'hand', h: 0, c: 0 })
     setReports(null)
     setError(null)
@@ -149,7 +169,7 @@ export function EquityLab(): JSX.Element {
             <p className="text-xs text-muted font-medium">Hand {h + 1}</p>
             <div className="flex gap-1.5">
               {[0, 1].map(c => (
-                <CardBtn key={c} card={hands[h][c]}
+                <CardBtn key={c} card={getHand(h)[c]}
                   active={active.kind === 'hand' && active.h === h && active.c === c}
                   onClick={() => setActive({ kind: 'hand', h, c: c as 0 | 1 })} />
               ))}
@@ -160,7 +180,7 @@ export function EquityLab(): JSX.Element {
           <p className="text-xs text-muted font-medium">Board (0/3/4/5)</p>
           <div className="flex gap-1.5">
             {[0, 1, 2, 3, 4].map(i => (
-              <CardBtn key={i} card={board[i]}
+              <CardBtn key={i} card={boardR[i]}
                 active={active.kind === 'board' && active.i === i}
                 onClick={() => setActive({ kind: 'board', i })} />
             ))}
@@ -188,7 +208,7 @@ export function EquityLab(): JSX.Element {
               <div className="flex items-center gap-3">
                 <span className="text-sm font-medium text-text w-16">Hand {i + 1}</span>
                 <div className="flex gap-1">
-                  {hands[i].map((c, k) => c !== null && <span key={k} className={`font-mono text-sm ${cardColorClass(c)}`}>{cardLabel(c)}</span>)}
+                  {getHand(i).map((c, k) => c !== null && <span key={k} className={`font-mono text-sm ${cardColorClass(c)}`}>{cardLabel(c)}</span>)}
                 </div>
                 <span className="text-sm font-bold tabnum text-profit ml-auto">{(r.equity * 100).toFixed(1)} %</span>
               </div>
