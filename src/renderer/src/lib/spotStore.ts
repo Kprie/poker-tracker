@@ -71,3 +71,50 @@ export const useSpotStore = create<SpotContextState>((set, get) => ({
     set({ board: next })
   }
 }))
+
+// ─── Auflösungs-Ebene ─────────────────────────────────────────────────────────
+// Liefert je Modus den geteilten ODER den lokalen Turnier-Kontext eines Tools.
+// Jedes Tool behält immer seinen lokalen State; im Modus 'shared' werden stattdessen
+// die Store-Werte/-Setter zurückgegeben, sodass beim Zurückschalten nichts verloren geht.
+
+export interface ToolContext {
+  players: number
+  stacks: number[]
+  payoutInputs: string[]
+  bbSize: number
+  ante: number
+  setPlayers: (n: number) => void
+  setStacks: (s: number[]) => void
+  setPayoutInputs: (p: string[]) => void
+  setBbSize: (n: number) => void
+  setAnte: (n: number) => void
+}
+
+export function useToolContext(local: ToolContext): ToolContext {
+  // Hooks immer unbedingt aufrufen (Rules of Hooks), dann je Modus auswählen.
+  const mode = useSpotStore((s) => s.mode)
+  const players = useSpotStore((s) => s.players)
+  const stacks = useSpotStore((s) => s.stacks)
+  const payoutInputs = useSpotStore((s) => s.payoutInputs)
+  const bbSize = useSpotStore((s) => s.bbSize)
+  const ante = useSpotStore((s) => s.ante)
+  const setPlayers = useSpotStore((s) => s.setPlayers)
+  const setStacks = useSpotStore((s) => s.setStacks)
+  const setBbSize = useSpotStore((s) => s.setBbSize)
+  const setAnte = useSpotStore((s) => s.setAnte)
+  const setContext = useSpotStore((s) => s.setContext)
+
+  if (mode === 'single') return local
+  return {
+    players,
+    stacks,
+    payoutInputs,
+    bbSize,
+    ante,
+    setPlayers,
+    setStacks,
+    setPayoutInputs: (p) => setContext({ payoutInputs: p }),
+    setBbSize,
+    setAnte,
+  }
+}

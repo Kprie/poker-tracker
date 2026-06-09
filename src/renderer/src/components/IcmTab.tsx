@@ -14,6 +14,8 @@ import { RoundSimulator } from './RoundSimulator'
 import { EquityLab } from './EquityLab'
 import { PotOddsCalculator } from './PotOddsCalculator'
 import { PkoBountyPanel } from './PkoBountyPanel'
+import { SpotContextPanel } from './SpotContextPanel'
+import { useSpotStore } from '../lib/spotStore'
 
 // Sub-Tab-Leiste innerhalb der ICM-Ergebnis-Sektion
 const RESULT_TABS = [
@@ -28,6 +30,9 @@ type ResultTab = typeof RESULT_TABS[number]['key']
 export function IcmTab(): JSX.Element {
   const [result, setResult] = useState<IcmResult | null>(null)
   const [resultTab, setResultTab] = useState<ResultTab>('matrix')
+
+  const mode = useSpotStore((s) => s.mode)
+  const setMode = useSpotStore((s) => s.setMode)
 
   const bf = useMemo(
     () => (result ? computeBubbleFactors(result.stacks, result.payouts) : null),
@@ -52,6 +57,36 @@ export function IcmTab(): JSX.Element {
         abgeschlossene oder hypothetische Turnierspots unter den angegebenen Annahmen. Keine
         Echtzeit-Entscheidungshilfe für laufende Hände.
       </div>
+
+      {/* ── Eingabemodus-Umschalter ────────────────────────────────────────── */}
+      <div className="flex items-center gap-3">
+        <span className="text-sm font-medium text-muted">Eingabemodus</span>
+        <div className="flex rounded-lg overflow-hidden border border-white/10 text-xs">
+          {([['shared', 'Gemeinsam'], ['single', 'Einzeln']] as const).map(([key, label]) => (
+            <button
+              key={key}
+              className={`px-3 py-1.5 transition-colors ${mode === key ? 'bg-accent text-bg font-semibold' : 'text-muted hover:text-text'}`}
+              onClick={() => setMode(key)}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+        <span className="text-[11px] text-muted/70">
+          {mode === 'shared'
+            ? 'Turnier-Kontext oben einmal eingeben — die Analyse-Tools übernehmen ihn.'
+            : 'Jedes Tool wird einzeln befüllt.'}
+        </span>
+      </div>
+
+      {/* ── Geteilter Spot-Kontext (nur im Modus „Gemeinsam") ──────────────── */}
+      {mode === 'shared' && (
+        <Section title="Spot-Kontext">
+          <SpotContextPanel />
+        </Section>
+      )}
+
+      {/* ════════ Kontext-gesteuerte Analyse ════════ */}
 
       {/* ── ICM-Equity-Rechner ─────────────────────────────────────────────── */}
       <Section title="ICM-Equity-Rechner">
@@ -88,6 +123,11 @@ export function IcmTab(): JSX.Element {
         </div>
       </Section>
 
+      {/* ── Spot-Analyse ──────────────────────────────────────────────────── */}
+      <Section title="Spot-Analyse">
+        <SpotAnalyzer />
+      </Section>
+
       {/* ── Hand-Analyse ─────────────────────────────────────────────────── */}
       <Section title="Hand-Analyse">
         <RoundSimulator />
@@ -98,10 +138,11 @@ export function IcmTab(): JSX.Element {
         <EquityLab />
       </Section>
 
-      {/* ── Spot-Analyse ──────────────────────────────────────────────────── */}
-      <Section title="Spot-Analyse">
-        <SpotAnalyzer />
-      </Section>
+      {/* ════════ Eigenständige Rechner ════════ */}
+      <div className="flex items-center gap-3 pt-2">
+        <span className="text-xs font-medium uppercase tracking-wider text-muted/70">Eigenständige Rechner</span>
+        <div className="flex-1 h-px bg-white/8" />
+      </div>
 
       {/* ── Pot-Odds & EV ─────────────────────────────────────────────────── */}
       <Section title="Pot-Odds & EV-Rechner">

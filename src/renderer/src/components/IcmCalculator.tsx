@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { computeIcmEquities, convertEquities } from '../lib/icm'
 import type { EvMode } from '../lib/icm'
 import { inputCls, selectCls } from '../lib/formStyles'
-import { defaultStacks, defaultPayoutInputs } from '../lib/spotStore'
+import { defaultStacks, defaultPayoutInputs, useToolContext, useSpotStore } from '../lib/spotStore'
 
 export interface IcmResult {
   equities: number[]
@@ -27,7 +27,7 @@ interface PayoutPreset {
   bbSize: number
 }
 
-const PAYOUT_PRESETS: PayoutPreset[] = [
+export const PAYOUT_PRESETS: PayoutPreset[] = [
   { label: '—',                           players: 3,  paid: 3,  payouts: ['50','30','20'],              bbSize: 100 },
   { label: 'Heads-Up',                    players: 2,  paid: 1,  payouts: ['100'],                       bbSize: 200 },
   { label: 'SNG 6-Handed (2 bezahlt)',    players: 6,  paid: 2,  payouts: ['65','35'],                   bbSize: 200 },
@@ -56,6 +56,21 @@ export function IcmCalculator({ onResult }: Props): JSX.Element {
   const [mode, setMode] = useState<EvMode>('icm_pct')
   const [result, setResult] = useState<IcmResult | null>(null)
   const [errors, setErrors] = useState<Record<string, string>>({})
+
+  // Eingabemodus + aufgelöster Turnier-Kontext (geteilt oder lokal).
+  const inputMode = useSpotStore((s) => s.mode)
+  const ctx = useToolContext({
+    players: playerCount,
+    stacks,
+    payoutInputs,
+    bbSize,
+    ante,
+    setPlayers: handlePlayerCountChange,
+    setStacks,
+    setPayoutInputs,
+    setBbSize,
+    setAnte,
+  })
 
   function applyPreset(preset: PayoutPreset): void {
     setPlayerCount(preset.players)
@@ -98,14 +113,14 @@ export function IcmCalculator({ onResult }: Props): JSX.Element {
 
   function validate(): boolean {
     const errs: Record<string, string> = {}
-    stacks.forEach((s, i) => {
+    ctx.stacks.forEach((s, i) => {
       if (s <= 0) errs[`stack_${i}`] = 'Stack muss > 0 sein.'
     })
-    payoutInputs.forEach((p, i) => {
+    ctx.payoutInputs.forEach((p, i) => {
       const v = parseFloat(p)
       if (isNaN(v) || v < 0) errs[`payout_${i}`] = 'Ungültiger Wert.'
     })
-    const totalPayout = payoutInputs.reduce((s, p) => s + (parseFloat(p) || 0), 0)
+    const totalPayout = ctx.payoutInputs.reduce((s, p) => s + (parseFloat(p) || 0), 0)
     if (totalPayout <= 0) errs['payouts'] = 'Die Summe der Auszahlungen muss > 0 sein.'
     setErrors(errs)
     return Object.keys(errs).length === 0
@@ -113,9 +128,9 @@ export function IcmCalculator({ onResult }: Props): JSX.Element {
 
   function handleCalculate(): void {
     if (!validate()) return
-    const payouts = payoutInputs.map(p => parseFloat(p))
-    const equities = computeIcmEquities(stacks, payouts)
-    const r: IcmResult = { equities, stacks, payouts, mode, bbSize, ante }
+    const payouts = ctx.payoutInputs.map(p => parseFloat(p))
+    const equities = computeIcmEquities(ctx.stacks, payouts)
+    const r: IcmResult = { equities, stacks: ctx.stacks, payouts, mode, bbSize: ctx.bbSize, ante: ctx.ante }
     setResult(r)
     onResult(r)
   }
@@ -136,10 +151,12 @@ export function IcmCalculator({ onResult }: Props): JSX.Element {
     return convertEquities(result.equities, result.stacks, result.payouts, result.mode, result.bbSize)
   }, [result])
 
-  const totalChips = stacks.reduce((s, v) => s + v, 0)
+  const totalChips = ctx.stacks.reduce((s, v) => s + v, 0)
 
   return (
     <div className="card p-5 md:p-6 flex flex-col gap-6">
+      {inputMode === 'single' && (
+      <>
       {/* Preset-Auswahl */}
       <div className="flex items-center gap-3">
         <label className="text-sm font-medium text-muted w-32 shrink-0">Schnell-Preset</label>
@@ -234,6 +251,8 @@ export function IcmCalculator({ onResult }: Props): JSX.Element {
         </div>
         {errors['payouts'] && <p className="text-sm text-loss mt-2">{errors['payouts']}</p>}
       </div>
+      </>
+      )}
 
       {/* EV-Modus */}
       <div className="flex items-center gap-3">
