@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { computeIcmEquities, convertEquities } from '../lib/icm'
 import type { EvMode } from '../lib/icm'
 import { inputCls, selectCls } from '../lib/formStyles'
+import { defaultStacks, defaultPayoutInputs } from '../lib/spotStore'
 
 export interface IcmResult {
   equities: number[]
@@ -44,17 +45,6 @@ const EV_MODES: { value: EvMode; label: string }[] = [
   { value: 'chip_ev', label: 'Chip EV' },
   { value: 'chip_bb', label: 'Chip BB' },
 ]
-
-function defaultStacks(n: number): number[] {
-  return Array.from({ length: n }, () => 1000)
-}
-
-function defaultPayoutInputs(paid: number): string[] {
-  if (paid === 1) return ['100']
-  if (paid === 2) return ['65', '35']
-  if (paid === 3) return ['50', '30', '20']
-  return Array.from({ length: paid }, () => '')
-}
 
 export function IcmCalculator({ onResult }: Props): JSX.Element {
   const [playerCount, setPlayerCount] = useState(3)
