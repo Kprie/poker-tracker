@@ -68,7 +68,7 @@ export function PkoBountyPanel(): JSX.Element {
           Hero covert den Gegner nicht (Stack kleiner) — kein Bounty möglich, Entscheidung rein nach Chip-/ICM-$EV.
         </p>
       )}
-      <p className="text-[10px] text-slate-600">
+      <p className="text-[10px] text-neutral-600">
         Modellabhängig · nur sofortiger Bounty · gilt nur unter den eingegebenen Annahmen.
       </p>
     </div>

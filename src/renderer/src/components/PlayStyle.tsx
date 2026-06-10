@@ -98,14 +98,14 @@ export function PlayStyle({ s }: Props): JSX.Element | null {
           <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 lg:grid-cols-7">
             {s.positions.map((p) => (
               <div key={p.pos} className="card px-3 py-2">
-                <div className="text-[10px] text-muted">{p.pos} <span className="text-slate-600">· n={p.hands}</span></div>
+                <div className="text-[10px] text-muted">{p.pos} <span className="text-neutral-600">· n={p.hands}</span></div>
                 <div className={`tabnum text-sm font-semibold ${p.bb100 >= 0 ? 'text-profit' : 'text-loss'}`}>
                   {p.bb100 >= 0 ? '+' : ''}{p.bb100.toFixed(1)}
                 </div>
               </div>
             ))}
           </div>
-          <p className="mt-2 text-[10px] text-slate-600">
+          <p className="mt-2 text-[10px] text-neutral-600">
             BB/100 = Netto-Big-Blinds pro 100 Hände. EV-adjustiertes BB/100 ist geplant.
           </p>
         </div>

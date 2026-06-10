@@ -50,7 +50,7 @@ const RESULT_TABS: { key: ResultTab; label: string }[] = [
   { key: 'range',    label: 'Range-Kurve' },
 ]
 
-const inputCls = 'bg-slate-900 border border-white/10 rounded-lg px-3 py-1.5 text-sm text-white tabnum focus:outline-none focus:ring-1 focus:ring-accent/60 transition-colors hover:border-white/20'
+const inputCls = 'bg-neutral-900 border border-white/10 rounded-lg px-3 py-1.5 text-sm text-white tabnum focus:outline-none focus:ring-1 focus:ring-accent/60 transition-colors hover:border-white/20'
 const selectCls = inputCls + ' cursor-pointer'
 
 /** Adaptiert ein MultiwaySolveResult auf die NashResult-Form für Grid/Tabelle. */
@@ -336,7 +336,7 @@ export function SpotAnalyzer(): JSX.Element {
   const tabCls = (k: ResultTab) =>
     k === resultTab
       ? 'border-b-2 border-accent text-white font-semibold pb-2 pt-2.5 px-4 text-xs'
-      : 'border-b-2 border-transparent text-slate-400 hover:text-slate-200 pb-2 pt-2.5 px-4 text-xs transition-colors'
+      : 'border-b-2 border-transparent text-neutral-400 hover:text-neutral-200 pb-2 pt-2.5 px-4 text-xs transition-colors'
 
   return (
     <div className="flex flex-col gap-4">
@@ -349,7 +349,7 @@ export function SpotAnalyzer(): JSX.Element {
       <div className="flex flex-wrap gap-3 items-end px-1">
         {inputMode === 'single' && (
         <div className="flex flex-col gap-1">
-          <label className="text-[10px] font-medium uppercase tracking-wider text-slate-500">Spieler</label>
+          <label className="text-[10px] font-medium uppercase tracking-wider text-neutral-500">Spieler</label>
           <select className={selectCls} value={players}
             onChange={e => handlePlayersChange(Number(e.target.value) as PlayerCount)}>
             {([2,3,4,5,6,7,8,9] as PlayerCount[]).map(n => <option key={n} value={n}>{n}</option>)}
@@ -358,7 +358,7 @@ export function SpotAnalyzer(): JSX.Element {
         )}
 
         <div className="flex flex-col gap-1">
-          <label className="text-[10px] font-medium uppercase tracking-wider text-slate-500">Position</label>
+          <label className="text-[10px] font-medium uppercase tracking-wider text-neutral-500">Position</label>
           <select className={selectCls} value={position}
             onChange={e => { setPosition(e.target.value as Position); setPostsOverride(null) }}>
             {positions.map(p => <option key={p} value={p}>{p}</option>)}
@@ -368,7 +368,7 @@ export function SpotAnalyzer(): JSX.Element {
         {inputMode === 'single' && (
         <>
         <div className="flex flex-col gap-1">
-          <label className="text-[10px] font-medium uppercase tracking-wider text-slate-500">Stack (BB)</label>
+          <label className="text-[10px] font-medium uppercase tracking-wider text-neutral-500">Stack (BB)</label>
           <div className="flex items-center gap-2">
             <input type="range" min={2} max={25} step={0.5} value={stackBbView}
               onChange={e => handleStackBbChange(parseFloat(e.target.value))}
@@ -380,13 +380,13 @@ export function SpotAnalyzer(): JSX.Element {
         </div>
 
         <div className="flex flex-col gap-1">
-          <label className="text-[10px] font-medium uppercase tracking-wider text-slate-500">BB-Größe</label>
+          <label className="text-[10px] font-medium uppercase tracking-wider text-neutral-500">BB-Größe</label>
           <input type="number" min={1} className={`${inputCls} w-20`} value={bbSize}
             onChange={e => { setBbSize(parseInt(e.target.value, 10) || 100); setPostsOverride(null) }} />
         </div>
 
         <div className="flex flex-col gap-1">
-          <label className="text-[10px] font-medium uppercase tracking-wider text-slate-500">Ante</label>
+          <label className="text-[10px] font-medium uppercase tracking-wider text-neutral-500">Ante</label>
           <input type="number" min={0} className={`${inputCls} w-20`} value={ante}
             onChange={e => { setAnte(parseInt(e.target.value, 10) || 0); setPostsOverride(null) }} />
         </div>
@@ -401,7 +401,7 @@ export function SpotAnalyzer(): JSX.Element {
         <div className="flex flex-col gap-4 min-w-0">
 
           {/* Poker-Tisch */}
-          <div className="rounded-2xl overflow-hidden border border-white/8 bg-slate-950/60 p-4 shadow-2xl">
+          <div className="rounded-2xl overflow-hidden border border-white/8 bg-neutral-950/60 p-4 shadow-2xl">
             <PokerTable
               players={ctx.players}
               heroPosition={position}
@@ -414,15 +414,15 @@ export function SpotAnalyzer(): JSX.Element {
 
           {/* Stacks — nur im Einzelmodus; im Gemeinsam-Modus kommt der Stack aus dem Spot-Kontext */}
           {inputMode === 'single' && (
-          <div className="rounded-xl border border-white/8 bg-slate-900/50 p-3">
-            <p className="text-[10px] font-medium uppercase tracking-wider text-slate-500 mb-2">
+          <div className="rounded-xl border border-white/8 bg-neutral-900/50 p-3">
+            <p className="text-[10px] font-medium uppercase tracking-wider text-neutral-500 mb-2">
               Stacks — Index 0 = Hero
             </p>
             <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
               {Array.from({ length: players }, (_, i) => (
                 <div key={i} className="flex flex-col gap-1">
-                  <label className="text-[10px] text-slate-500">
-                    {i === 0 ? <span className="text-accent font-semibold">Hero</span> : `Sp. ${i + 1}`}
+                  <label className="text-[10px] text-neutral-500">
+                    {i === 0 ? <span className="text-accent font-semibold">Hero</span> : `Gegner ${i}`}
                   </label>
                   <input type="number" min={1}
                     className={`${inputCls} ${i === 0 ? 'border-accent/30' : ''} w-full`}
@@ -435,9 +435,9 @@ export function SpotAnalyzer(): JSX.Element {
           )}
 
           {/* Posts (Blind + Ante) je Sitz — multiway-relevant */}
-          <div className="rounded-xl border border-white/8 bg-slate-900/50 p-3">
+          <div className="rounded-xl border border-white/8 bg-neutral-900/50 p-3">
             <div className="flex items-center justify-between mb-2">
-              <p className="text-[10px] font-medium uppercase tracking-wider text-slate-500">
+              <p className="text-[10px] font-medium uppercase tracking-wider text-neutral-500">
                 Posts (Blind + Ante) — Chips je Sitz
               </p>
               {postsOverride && (
@@ -449,8 +449,8 @@ export function SpotAnalyzer(): JSX.Element {
             <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
               {Array.from({ length: ctx.players }, (_, i) => (
                 <div key={i} className="flex flex-col gap-1">
-                  <label className="text-[10px] text-slate-500">
-                    {i === 0 ? <span className="text-accent font-semibold">Hero</span> : `Sp. ${i + 1}`}
+                  <label className="text-[10px] text-neutral-500">
+                    {i === 0 ? <span className="text-accent font-semibold">Hero</span> : `Gegner ${i}`}
                   </label>
                   <input type="number" min={0}
                     className={`${inputCls} w-full`}
@@ -459,7 +459,7 @@ export function SpotAnalyzer(): JSX.Element {
                 </div>
               ))}
             </div>
-            <p className="text-[10px] text-slate-600 mt-1.5">
+            <p className="text-[10px] text-neutral-600 mt-1.5">
               {ctx.players > 2
                 ? `Position ${position}: ${layout.nBehind} Spieler hinter Hero handeln noch; frühere Sitze gelten als gefoldet (Posts = Dead Money). SB/BB auf den letzten aktiven Sitzen.`
                 : 'Heads-Up: Sitz 0 (Hero/SB) jammt gegen BB. Stacks gelten vor dem Posten.'}
@@ -467,11 +467,11 @@ export function SpotAnalyzer(): JSX.Element {
           </div>
 
           {/* Auszahlungen + Aktions-Buttons */}
-          <div className="rounded-xl border border-white/8 bg-slate-900/50 p-3 flex flex-wrap gap-3 items-end">
+          <div className="rounded-xl border border-white/8 bg-neutral-900/50 p-3 flex flex-wrap gap-3 items-end">
             {inputMode === 'single' && (
             <>
             <div className="flex flex-col gap-1">
-              <label className="text-[10px] font-medium uppercase tracking-wider text-slate-500">Bezahlte Plätze</label>
+              <label className="text-[10px] font-medium uppercase tracking-wider text-neutral-500">Bezahlte Plätze</label>
               <select className={selectCls} value={paidPlaces}
                 onChange={e => setPaidPlaces(Number(e.target.value))}>
                 {Array.from({ length: players - 1 }, (_, i) => i + 1).map(n => (
@@ -482,7 +482,7 @@ export function SpotAnalyzer(): JSX.Element {
 
             {Array.from({ length: paidPlaces }, (_, i) => (
               <div key={i} className="flex flex-col gap-1">
-                <label className="text-[10px] text-slate-500">Platz {i + 1}</label>
+                <label className="text-[10px] text-neutral-500">Platz {i + 1}</label>
                 <input type="number" min={0} className={`${inputCls} w-16`}
                   value={payoutInputs[i] ?? ''}
                   onChange={e => { const u = [...payoutInputs]; u[i] = e.target.value; setPayoutInputs(u) }} />
@@ -495,7 +495,7 @@ export function SpotAnalyzer(): JSX.Element {
 
             {/* Buttons */}
             <button
-              className="px-3 py-1.5 text-xs rounded-lg border border-white/15 text-slate-300 hover:border-white/30 hover:text-white transition-all disabled:opacity-40"
+              className="px-3 py-1.5 text-xs rounded-lg border border-white/15 text-neutral-300 hover:border-white/30 hover:text-white transition-all disabled:opacity-40"
               onClick={handleLoadNash}
               disabled={nashLoading}
             >
@@ -508,13 +508,13 @@ export function SpotAnalyzer(): JSX.Element {
             </button>
 
             <button
-              className="px-4 py-1.5 text-xs rounded-lg font-semibold bg-accent text-slate-950 hover:bg-accent/90 active:scale-95 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+              className="px-4 py-1.5 text-xs rounded-lg font-semibold bg-accent text-neutral-950 hover:bg-accent/90 active:scale-95 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
               onClick={handleAnalyze}
               disabled={!heroHand || loading}
             >
               {loading
                 ? <span className="flex items-center gap-1.5">
-                    <span className="h-2.5 w-2.5 rounded-full border-2 border-slate-900 border-t-transparent animate-spin" />
+                    <span className="h-2.5 w-2.5 rounded-full border-2 border-neutral-900 border-t-transparent animate-spin" />
                     Analysieren…
                   </span>
                 : 'Analysieren'}
@@ -522,23 +522,23 @@ export function SpotAnalyzer(): JSX.Element {
           </div>
 
           {!heroHand && (
-            <p className="text-xs text-slate-500 text-center -mt-1">
+            <p className="text-xs text-neutral-500 text-center -mt-1">
               Hand im Grid auswählen um zu analysieren
             </p>
           )}
         </div>
 
         {/* ── Rechte Spalte: Hand-Grid (immer sichtbar) ────────────────────── */}
-        <div className="rounded-2xl border border-white/8 bg-slate-900/60 p-4 shadow-xl flex flex-col gap-3">
+        <div className="rounded-2xl border border-white/8 bg-neutral-900/60 p-4 shadow-xl flex flex-col gap-3">
           <div className="flex items-center justify-between gap-3">
             <div>
-              <p className="text-xs font-semibold text-slate-200">
+              <p className="text-xs font-semibold text-neutral-200">
                 Hand-Auswahl
                 {heroHand && (
                   <span className="ml-2 text-accent font-mono">{heroHand}</span>
                 )}
               </p>
-              <p className="text-[10px] text-slate-500 mt-0.5">
+              <p className="text-[10px] text-neutral-500 mt-0.5">
                 {nashReady
                   ? 'Farbe = ICM-adjustierter Nash-EV · Klicken zum Auswählen'
                   : 'Nash-Ranges laden für EV-Farben · Klicken zum Auswählen'}
@@ -566,11 +566,11 @@ export function SpotAnalyzer(): JSX.Element {
 
       {/* ── Ergebnis-Bereich ─────────────────────────────────────────────── */}
       {result && (
-        <div className="rounded-2xl border border-white/8 bg-slate-900/60 overflow-hidden shadow-xl">
+        <div className="rounded-2xl border border-white/8 bg-neutral-900/60 overflow-hidden shadow-xl">
           {/* Result-Header */}
-          <div className="px-5 py-4 border-b border-white/8 flex flex-wrap items-center gap-4 bg-slate-900/40">
+          <div className="px-5 py-4 border-b border-white/8 flex flex-wrap items-center gap-4 bg-neutral-900/40">
             <span className="text-xl font-bold font-mono text-white">{result.handId}</span>
-            <span className="text-xs text-slate-400">{ctx.players}-handed · {position} · {stackBbView.toFixed(1)} BB</span>
+            <span className="text-xs text-neutral-400">{ctx.players}-handed · {position} · {stackBbView.toFixed(1)} BB</span>
 
             {selectedNash && (
               <>
@@ -582,15 +582,15 @@ export function SpotAnalyzer(): JSX.Element {
                 ].join(' ')}>
                   {selectedNash.ev > 0 ? 'PUSH ✓' : 'FOLD'}
                 </div>
-                <span className="text-xs text-slate-400 tabnum">
+                <span className="text-xs text-neutral-400 tabnum">
                   EV: <span className={selectedNash.ev >= 0 ? 'text-[#3ddc97]' : 'text-[#f0686d]'}>
                     {selectedNash.ev >= 0 ? '+' : ''}{selectedNash.ev.toFixed(4)}
                   </span>
                 </span>
-                <span className="text-xs text-slate-400 tabnum">
-                  Equity: <span className="text-slate-200">{(selectedNash.equity * 100).toFixed(1)} %</span>
+                <span className="text-xs text-neutral-400 tabnum">
+                  Equity: <span className="text-neutral-200">{(selectedNash.equity * 100).toFixed(1)} %</span>
                 </span>
-                <span className="text-xs text-slate-500 tabnum">
+                <span className="text-xs text-neutral-500 tabnum">
                   Konvergenz: {result.nashResult.iterations} Iter.
                   {result.nashResult.converged ? ' ✓' : ''}
                 </span>
@@ -599,7 +599,7 @@ export function SpotAnalyzer(): JSX.Element {
           </div>
 
           {/* Sub-Tabs */}
-          <div className="flex gap-0 border-b border-white/8 px-4 bg-slate-950/30">
+          <div className="flex gap-0 border-b border-white/8 px-4 bg-neutral-950/30">
             {RESULT_TABS.map(t => (
               <button key={t.key} className={tabCls(t.key)} onClick={() => setResultTab(t.key)}>
                 {t.label}
@@ -617,15 +617,15 @@ export function SpotAnalyzer(): JSX.Element {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {/* MC-Equity */}
                 {result.equity && (
-                  <div className="rounded-xl border border-white/8 bg-slate-800/40 p-4">
-                    <p className="text-[10px] font-medium uppercase tracking-wider text-slate-500 mb-3">
+                  <div className="rounded-xl border border-white/8 bg-neutral-800/40 p-4">
+                    <p className="text-[10px] font-medium uppercase tracking-wider text-neutral-500 mb-3">
                       Equity vs Nash-Calling-Range
                     </p>
                     <div className="flex items-baseline gap-3 mb-3">
                       <span className="text-3xl font-bold tabnum text-white">
                         {(result.equity.equity * 100).toFixed(1)} %
                       </span>
-                      <span className="text-xs text-slate-500">
+                      <span className="text-xs text-neutral-500">
                         ±{(result.equity.stdDev * 196).toFixed(1)} % (95%-KI)
                       </span>
                     </div>
@@ -633,11 +633,11 @@ export function SpotAnalyzer(): JSX.Element {
                       <div className="bg-[#3ddc97] rounded-full transition-all"
                            style={{ width: `${result.equity.equity * 100}%` }} />
                     </div>
-                    <div className="flex justify-between text-[10px] text-slate-500 tabnum mt-1.5">
+                    <div className="flex justify-between text-[10px] text-neutral-500 tabnum mt-1.5">
                       <span>Hero {(result.equity.equity * 100).toFixed(1)} %</span>
                       <span>Villain {((1 - result.equity.equity) * 100).toFixed(1)} %</span>
                     </div>
-                    <p className="text-[10px] text-slate-600 mt-2">
+                    <p className="text-[10px] text-neutral-600 mt-2">
                       MC · {result.equity.iterations.toLocaleString('de-DE')} Iterationen
                     </p>
                   </div>
@@ -645,8 +645,8 @@ export function SpotAnalyzer(): JSX.Element {
 
                 {/* ICM-Szenarien */}
                 {result.icm && (
-                  <div className="rounded-xl border border-white/8 bg-slate-800/40 p-4">
-                    <p className="text-[10px] font-medium uppercase tracking-wider text-slate-500 mb-3">
+                  <div className="rounded-xl border border-white/8 bg-neutral-800/40 p-4">
+                    <p className="text-[10px] font-medium uppercase tracking-wider text-neutral-500 mb-3">
                       ICM-Szenarien (Malmuth-Harville)
                     </p>
                     <div className="space-y-1.5">
@@ -660,12 +660,12 @@ export function SpotAnalyzer(): JSX.Element {
                         return (
                           <div key={row.key}
                                className="flex items-center justify-between py-1 border-b border-white/5 last:border-0">
-                            <span className="text-xs text-slate-300">{row.label}</span>
+                            <span className="text-xs text-neutral-300">{row.label}</span>
                             <div className="flex items-center gap-3">
-                              <span className="text-xs tabnum text-slate-200">{fmtEq(row.val)}</span>
+                              <span className="text-xs tabnum text-neutral-200">{fmtEq(row.val)}</span>
                               <span className={[
                                 'text-xs tabnum w-16 text-right',
-                                row.key === 'fold' ? 'text-slate-500'
+                                row.key === 'fold' ? 'text-neutral-500'
                                   : delta >= 0 ? 'text-[#3ddc97]' : 'text-[#f0686d]',
                               ].join(' ')}>
                                 {row.key === 'fold' ? '—' : fmtDelta(delta)}
@@ -685,7 +685,7 @@ export function SpotAnalyzer(): JSX.Element {
                       const ev    = weightedPushEv(result.icm!, pCall, selectedNash.equity)
                       return (
                         <div className="mt-3 flex items-center justify-between rounded-lg bg-white/[0.03] px-3 py-2">
-                          <span className="text-[10px] text-slate-500">Gewichteter Push-EV</span>
+                          <span className="text-[10px] text-neutral-500">Gewichteter Push-EV</span>
                           <span className={`text-sm font-bold tabnum ${ev>=0?'text-[#3ddc97]':'text-[#f0686d]'}`}>
                             {fmtDelta(ev)}
                           </span>
@@ -697,9 +697,9 @@ export function SpotAnalyzer(): JSX.Element {
 
                 {/* Info-Fußzeile */}
                 <div className="md:col-span-2">
-                  <p className="text-[10px] text-slate-600">
-                    Push: <span className="tabnum text-slate-400">{[...result.nashResult.pushRange.values()].filter(r=>r.ev>0).length}</span> Hände ·
-                    Call: <span className="tabnum text-slate-400">{[...result.nashResult.callRange.values()].filter(r=>r.ev>0).length}</span> Hände ·
+                  <p className="text-[10px] text-neutral-600">
+                    Push: <span className="tabnum text-neutral-400">{[...result.nashResult.pushRange.values()].filter(r=>r.ev>0).length}</span> Hände ·
+                    Call: <span className="tabnum text-neutral-400">{[...result.nashResult.callRange.values()].filter(r=>r.ev>0).length}</span> Hände ·
                     ABR-Nash-Solver (ICM-adjustiert) · Equity via Monte Carlo
                   </p>
                 </div>
@@ -709,7 +709,7 @@ export function SpotAnalyzer(): JSX.Element {
             {/* ── EV-Tabelle ────────────────────────────────────────────── */}
             {resultTab === 'evtable' && (
               <div className="flex flex-col gap-3">
-                <p className="text-[10px] text-slate-500">
+                <p className="text-[10px] text-neutral-500">
                   ICM-adjustierter Push-EV aller 169 Hände · gewählte Hand:
                   <span className="text-accent font-mono ml-1">{result.handId}</span>
                 </p>
@@ -752,40 +752,40 @@ function SimpleHandGrid({ selected, onSelect, nashResult }: {
 }): JSX.Element {
   function bg(id: HandId): string {
     if (id === selected) return 'ring-1 ring-white/80 bg-accent/80'
-    if (!nashResult) return 'bg-slate-800/60 hover:bg-slate-700/60'
+    if (!nashResult) return 'bg-neutral-800/60 hover:bg-neutral-700/60'
     const e = nashResult.pushRange.get(id)
-    if (!e) return 'bg-slate-800/60 hover:bg-slate-700/60'
+    if (!e) return 'bg-neutral-800/60 hover:bg-neutral-700/60'
     if (e.ev > 1.0) return 'bg-[#3ddc97]/70 hover:bg-[#3ddc97]/80'
     if (e.ev > 0)   return 'bg-[#3ddc97]/30 hover:bg-[#3ddc97]/40'
     if (e.ev > -1)  return 'bg-amber-900/40 hover:bg-amber-900/50'
-    return 'bg-slate-800/60 hover:bg-slate-700/60'
+    return 'bg-neutral-800/60 hover:bg-neutral-700/60'
   }
 
   return (
     <div className="overflow-x-auto">
-      <table className="border-collapse select-none" style={{ fontSize: 8 }}>
+      <table className="border-collapse select-none" style={{ fontSize: 11 }}>
         <thead>
           <tr>
-            <th className="w-5 h-5" />
+            <th className="w-6 h-6" />
             {RANKS.map(r => (
-              <th key={r} className="w-9 h-5 text-center text-slate-500 font-mono font-normal" style={{ fontSize: 8 }}>{r}</th>
+              <th key={r} className="w-12 h-6 text-center text-muted font-mono font-medium" style={{ fontSize: 11 }}>{r}</th>
             ))}
           </tr>
         </thead>
         <tbody>
           {RANKS.map((_, i) => (
             <tr key={i}>
-              <td className="w-5 text-center text-slate-500 font-mono" style={{ fontSize: 8 }}>{RANKS[i]}</td>
+              <td className="w-6 text-center text-muted font-mono font-medium" style={{ fontSize: 11 }}>{RANKS[i]}</td>
               {RANKS.map((_, j) => {
                 const id = getHandId(i, j)
                 return (
                   <td key={j}
                     onClick={() => onSelect(id)}
                     title={id}
-                    className={`w-9 h-8 text-center cursor-pointer rounded-[2px] transition-colors ${bg(id)}`}
+                    className={`w-12 h-11 text-center cursor-pointer rounded-[3px] transition-colors ${bg(id)}`}
                     style={{ padding: '1px' }}
                   >
-                    <span className="text-white/70 leading-none font-mono" style={{ fontSize: 7 }}>{id}</span>
+                    <span className="text-white leading-none font-mono font-semibold" style={{ fontSize: 11 }}>{id}</span>
                   </td>
                 )
               })}
@@ -799,7 +799,7 @@ function SimpleHandGrid({ selected, onSelect, nashResult }: {
 
 function LoadingPlaceholder(): JSX.Element {
   return (
-    <div className="h-20 flex items-center justify-center text-xs text-slate-500">
+    <div className="h-20 flex items-center justify-center text-xs text-neutral-500">
       Keine Daten verfügbar
     </div>
   )
@@ -807,7 +807,7 @@ function LoadingPlaceholder(): JSX.Element {
 
 function ChartLoading({ msg }: { msg: string }): JSX.Element {
   return (
-    <div className="h-32 flex flex-col items-center justify-center gap-2 text-xs text-slate-500">
+    <div className="h-32 flex flex-col items-center justify-center gap-2 text-xs text-neutral-500">
       <span className="h-4 w-4 rounded-full border-2 border-accent/60 border-t-transparent animate-spin" />
       {msg}
     </div>

@@ -106,7 +106,7 @@ export function MethodikPanel(): JSX.Element {
           <p>100 % offline · keine Verbindung zu Pokerseiten/Clients · kein Scraping/OCR/HUD/Automatisierung.</p>
           <p>Nur eigene Hand-Histories · lokale Speicherung verschlüsselt · Export anonymisiert (keine Spielernamen).</p>
           <p>Bestätigung „abgeschlossene/hypothetische Hand" mit Zeitstempel · dauerhafter Modell-Hinweis pro Analyse.</p>
-          <p className="text-xs text-slate-600">
+          <p className="text-xs text-neutral-600">
             Keine Rechtsberatung. Die Zulässigkeit richtet sich nach den jeweils aktuellen Regeln des Pokerraums.
           </p>
         </div>

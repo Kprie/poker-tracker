@@ -7,12 +7,12 @@ interface Props {
 }
 
 function cellBg(entry: HandEntry | null | undefined): string {
-  if (entry == null) return 'bg-slate-900 opacity-40'
-  if (entry.ev === null) return 'bg-slate-900 opacity-40'
+  if (entry == null) return 'bg-neutral-900 opacity-40'
+  if (entry.ev === null) return 'bg-neutral-900 opacity-40'
   if (entry.ev > 1.0) return 'bg-green-700'
   if (entry.ev >= 0)  return 'bg-green-900'
   if (entry.ev >= -1.0) return 'bg-yellow-900'
-  return 'bg-slate-800'
+  return 'bg-neutral-800'
 }
 
 function tooltip(id: HandId, entry: HandEntry | null | undefined): string {
@@ -93,10 +93,10 @@ export function HandGridLegend(): JSX.Element {
         <span className="inline-block w-3 h-3 rounded-sm bg-yellow-900" /> Leicht negativ (−1–0&nbsp;BB)
       </span>
       <span className="flex items-center gap-1.5">
-        <span className="inline-block w-3 h-3 rounded-sm bg-slate-800" /> Klar negativ (&lt;&nbsp;−1&nbsp;BB)
+        <span className="inline-block w-3 h-3 rounded-sm bg-neutral-800" /> Klar negativ (&lt;&nbsp;−1&nbsp;BB)
       </span>
       <span className="flex items-center gap-1.5">
-        <span className="inline-block w-3 h-3 rounded-sm bg-slate-900 opacity-40" /> Keine Daten
+        <span className="inline-block w-3 h-3 rounded-sm bg-neutral-900 opacity-40" /> Keine Daten
       </span>
       <span className="text-muted/70">· Zahl in Zelle = Mixed Strategy (N&nbsp;% spielen)</span>
     </div>

@@ -14,7 +14,7 @@ export function cardLabel(c: Card): string {
 }
 
 export function cardColorClass(c: Card): string {
-  return SUIT_RED[cardSuit(c)] ? 'text-red-400' : 'text-slate-200'
+  return SUIT_RED[cardSuit(c)] ? 'text-red-400' : 'text-neutral-200'
 }
 
 // ─── Komponente ───────────────────────────────────────────────────────────────
@@ -39,7 +39,7 @@ export function CardPicker({ selected, blocked, onToggle, maxSelect = 0 }: Props
       <div className="grid mb-0.5" style={{ gridTemplateColumns: 'auto repeat(13, 1fr)', gap: '2px' }}>
         <div className="w-4" />
         {[...RANK_CHARS].reverse().map(r => (
-          <div key={r} className="text-center text-muted font-mono leading-none" style={{ fontSize: 9 }}>{r}</div>
+          <div key={r} className="text-center text-muted font-mono font-medium leading-none" style={{ fontSize: 11 }}>{r}</div>
         ))}
       </div>
 
@@ -47,7 +47,7 @@ export function CardPicker({ selected, blocked, onToggle, maxSelect = 0 }: Props
       {SUIT_ORDER.map(suit => (
         <div key={suit} className="grid mb-0.5" style={{ gridTemplateColumns: 'auto repeat(13, 1fr)', gap: '2px' }}>
           {/* Farb-Label */}
-          <div className={`w-4 text-center leading-none font-mono ${SUIT_RED[suit] ? 'text-red-400' : 'text-slate-400'}`} style={{ fontSize: 10 }}>
+          <div className={`w-4 text-center leading-none font-mono ${SUIT_RED[suit] ? 'text-red-400' : 'text-neutral-400'}`} style={{ fontSize: 12 }}>
             {SUIT_SYMBOL[suit]}
           </div>
 
@@ -66,14 +66,14 @@ export function CardPicker({ selected, blocked, onToggle, maxSelect = 0 }: Props
                 disabled={disabled}
                 onClick={() => !disabled && onToggle(c)}
                 className={[
-                  'rounded-[2px] py-0.5 text-center leading-none transition-colors font-mono',
+                  'rounded-[2px] py-1 text-center leading-none transition-colors font-mono font-medium',
                   isSel     ? 'bg-accent ring-1 ring-white text-white'
-                  : isBlocked ? 'bg-slate-900 cursor-not-allowed opacity-30'
-                  : atMax     ? 'bg-slate-800 cursor-not-allowed opacity-40'
-                  : 'bg-slate-800 hover:bg-slate-600 cursor-pointer',
-                  !isSel && !isBlocked && !atMax ? (SUIT_RED[suit] ? 'text-red-400' : 'text-slate-200') : '',
+                  : isBlocked ? 'bg-neutral-900 cursor-not-allowed opacity-30'
+                  : atMax     ? 'bg-neutral-800 cursor-not-allowed opacity-40'
+                  : 'bg-neutral-800 hover:bg-neutral-600 cursor-pointer',
+                  !isSel && !isBlocked && !atMax ? (SUIT_RED[suit] ? 'text-red-400' : 'text-neutral-200') : '',
                 ].join(' ')}
-                style={{ fontSize: 9 }}
+                style={{ fontSize: 12 }}
                 title={cardLabel(c)}
               >
                 {RANK_CHARS[rank]}

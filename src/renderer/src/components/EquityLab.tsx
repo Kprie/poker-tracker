@@ -25,12 +25,12 @@ function CardBtn({ card, active, onClick }: { card: Card | null; active: boolean
       className={[
         'h-10 w-8 rounded border text-center font-mono flex items-center justify-center transition-all',
         active ? 'border-accent ring-1 ring-accent bg-accent/10'
-        : card !== null ? 'border-white/20 bg-slate-800'
-        : 'border-dashed border-white/20 bg-slate-900/50',
+        : card !== null ? 'border-white/20 bg-neutral-800'
+        : 'border-dashed border-white/20 bg-neutral-900/50',
       ].join(' ')}
       style={{ fontSize: 11 }}
     >
-      {card !== null ? <span className={cardColorClass(card)}>{cardLabel(card)}</span> : <span className="text-slate-600">+</span>}
+      {card !== null ? <span className={cardColorClass(card)}>{cardLabel(card)}</span> : <span className="text-neutral-600">+</span>}
     </button>
   )
 }
@@ -157,7 +157,7 @@ export function EquityLab(): JSX.Element {
             {[2, 3, 4].map(n => <option key={n} value={n}>{n}</option>)}
           </select>
         </div>
-        <button className="text-xs text-slate-500 hover:text-slate-300 border border-white/10 rounded-lg px-2.5 py-1.5" onClick={reset}>
+        <button className="text-xs text-neutral-500 hover:text-neutral-300 border border-white/10 rounded-lg px-2.5 py-1.5" onClick={reset}>
           Zurücksetzen
         </button>
       </div>
@@ -225,7 +225,7 @@ export function EquityLab(): JSX.Element {
               </div>
             </div>
           ))}
-          <p className="text-[10px] text-slate-600 mt-1">
+          <p className="text-[10px] text-neutral-600 mt-1">
             Equity = Anteil am Pot bei Showdown · Handklassen = Verteilung der finalen Hand über alle Runouts · modellabhängig.
           </p>
         </div>

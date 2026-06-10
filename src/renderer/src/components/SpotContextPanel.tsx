@@ -107,7 +107,7 @@ export function SpotContextPanel(): JSX.Element {
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
           {stacks.map((stack, i) => (
             <div key={i} className="flex flex-col gap-1">
-              <label className="text-xs text-muted">Spieler {i + 1}</label>
+              <label className="text-xs text-muted">{i === 0 ? <span className="text-accent font-semibold">Hero</span> : `Gegner ${i}`}</label>
               <input type="number" min={1} className={inputCls} value={stack}
                 onChange={(e) => changeStack(i, e.target.value)} />
             </div>

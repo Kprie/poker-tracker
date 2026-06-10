@@ -89,21 +89,21 @@ function CardSlot({ card, label, active, onClick, clearable, onClear }: {
         className={[
           'h-10 w-8 rounded border text-center transition-all font-mono flex flex-col items-center justify-center',
           active  ? 'border-accent ring-1 ring-accent bg-accent/10'
-          : card !== null ? 'border-white/20 bg-slate-800 hover:border-white/40'
-          : 'border-dashed border-white/20 bg-slate-900/50 hover:border-white/40',
+          : card !== null ? 'border-white/20 bg-neutral-800 hover:border-white/40'
+          : 'border-dashed border-white/20 bg-neutral-900/50 hover:border-white/40',
         ].join(' ')}
         style={{ fontSize: 11 }}
       >
         {card !== null ? (
           <span className={cardColorClass(card)}>{cardLabel(card)}</span>
         ) : (
-          <span className="text-slate-600 text-xs">+</span>
+          <span className="text-neutral-600 text-xs">+</span>
         )}
       </button>
       {clearable && card !== null && onClear && (
         <button
           onClick={onClear}
-          className="absolute -top-1 -right-1 h-3.5 w-3.5 rounded-full bg-slate-700 border border-white/20 text-slate-400 hover:text-white hover:bg-slate-600 flex items-center justify-center"
+          className="absolute -top-1 -right-1 h-3.5 w-3.5 rounded-full bg-neutral-700 border border-white/20 text-neutral-400 hover:text-white hover:bg-neutral-600 flex items-center justify-center"
           style={{ fontSize: 8 }}
           title={`${label} entfernen`}
         >
@@ -498,7 +498,7 @@ export function RoundSimulator(): JSX.Element {
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
           {Array.from({ length: players }, (_, i) => (
             <div key={i} className="flex flex-col gap-1">
-              <label className="text-xs text-muted">{i === 0 ? 'Hero' : `Sp. ${i + 1}`}</label>
+              <label className="text-xs text-muted">{i === 0 ? 'Hero' : `Gegner ${i}`}</label>
               <input type="number" min={1}
                 className={`${inputCls} ${i === 0 ? 'ring-1 ring-accent/50' : ''}`}
                 value={stacks[i] ?? 1000}
@@ -517,7 +517,7 @@ export function RoundSimulator(): JSX.Element {
             Karten — Slot anklicken, dann Karte im Picker wählen
           </p>
           <button
-            className="text-xs text-slate-500 hover:text-slate-300 transition-colors border border-white/10 rounded-lg px-2.5 py-1 hover:border-white/20"
+            className="text-xs text-neutral-500 hover:text-neutral-300 transition-colors border border-white/10 rounded-lg px-2.5 py-1 hover:border-white/20"
             onClick={clearAll}
           >
             Alle zurücksetzen
@@ -551,8 +551,8 @@ export function RoundSimulator(): JSX.Element {
                 invalidBoard
                   ? 'bg-red-900/40 text-red-400'
                   : stage !== 'Preflop'
-                    ? 'bg-white/8 text-slate-400'
-                    : 'text-slate-600'
+                    ? 'bg-white/8 text-neutral-400'
+                    : 'text-neutral-600'
               }`}>
                 {stage === 'Ungültig' ? '⚠ Unvollständig' : stage}
               </span>
@@ -582,13 +582,13 @@ export function RoundSimulator(): JSX.Element {
               {/* Modus-Toggle */}
               <div className="flex rounded-lg border border-white/10 overflow-hidden">
                 <button
-                  className={`text-[10px] px-2 py-0.5 transition-colors ${villainMode === 'cards' ? 'bg-accent/20 text-accent' : 'text-slate-500 hover:text-slate-300'}`}
+                  className={`text-[10px] px-2 py-0.5 transition-colors ${villainMode === 'cards' ? 'bg-accent/20 text-accent' : 'text-neutral-500 hover:text-neutral-300'}`}
                   onClick={() => setVillainMode('cards')}
                 >
                   Karten
                 </button>
                 <button
-                  className={`text-[10px] px-2 py-0.5 transition-colors ${villainMode === 'range' ? 'bg-accent/20 text-accent' : 'text-slate-500 hover:text-slate-300'}`}
+                  className={`text-[10px] px-2 py-0.5 transition-colors ${villainMode === 'range' ? 'bg-accent/20 text-accent' : 'text-neutral-500 hover:text-neutral-300'}`}
                   onClick={() => setVillainMode('range')}
                 >
                   Range
@@ -621,7 +621,7 @@ export function RoundSimulator(): JSX.Element {
                   />
                   <span className="text-sm tabnum text-text w-10 text-right font-semibold">{rangeWidthPct} %</span>
                 </div>
-                <p className="text-[10px] text-slate-500">
+                <p className="text-[10px] text-neutral-500">
                   Stärkste {rangeWidthPct} % aller Hände · ca. {Math.round(1326 * rangeWidthPct / 100)} Kombos
                 </p>
               </div>
@@ -798,7 +798,7 @@ export function RoundSimulator(): JSX.Element {
               </p>
               <div className="flex flex-wrap gap-1">
                 {result.exactEquity.outs.map(c => (
-                  <span key={c} className={`font-mono text-xs px-1.5 py-0.5 rounded bg-slate-800 ${cardColorClass(c)}`}>
+                  <span key={c} className={`font-mono text-xs px-1.5 py-0.5 rounded bg-neutral-800 ${cardColorClass(c)}`}>
                     {cardLabel(c)}
                   </span>
                 ))}

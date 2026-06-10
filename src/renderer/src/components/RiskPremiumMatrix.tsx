@@ -10,7 +10,7 @@ function cellClass(rp: number): string {
   if (rp >= 0.20) return 'bg-red-900/50 text-red-300 font-semibold'
   if (rp >= 0.10) return 'bg-orange-900/40 text-orange-300'
   if (rp >= 0.03) return 'bg-yellow-900/30 text-yellow-200'
-  return 'text-slate-400'
+  return 'text-neutral-400'
 }
 
 /**

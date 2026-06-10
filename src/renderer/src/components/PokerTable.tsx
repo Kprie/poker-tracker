@@ -108,15 +108,15 @@ function PlayerChip({ spot }: { spot: PlayerSpot }): JSX.Element {
       className={[
         'flex flex-col items-center gap-1 px-2.5 py-2 rounded-xl transition-all',
         spot.isHero
-          ? 'bg-slate-800/90 border border-accent/50 ring-1 ring-accent/20 shadow-lg shadow-accent/10'
-          : 'bg-slate-900/80 border border-white/10',
+          ? 'bg-neutral-800/90 border border-accent/50 ring-1 ring-accent/20 shadow-lg shadow-accent/10'
+          : 'bg-neutral-900/80 border border-white/10',
       ].join(' ')}
       style={{ minWidth: 64 }}
     >
       {/* Position badge */}
       <div className={[
         'text-[9px] font-bold tracking-wider uppercase leading-none px-1.5 py-0.5 rounded-full',
-        spot.isHero ? 'bg-accent/20 text-accent' : 'bg-white/8 text-slate-400',
+        spot.isHero ? 'bg-accent/20 text-accent' : 'bg-white/8 text-neutral-400',
       ].join(' ')}>
         {spot.label}
       </div>
@@ -131,8 +131,8 @@ function PlayerChip({ spot }: { spot: PlayerSpot }): JSX.Element {
       </div>
 
       {/* Stack */}
-      <div className="text-[10px] tabnum font-semibold text-slate-300 leading-none">
-        {stackBb.toFixed(1)} <span className="text-slate-500 font-normal">BB</span>
+      <div className="text-[10px] tabnum font-semibold text-neutral-300 leading-none">
+        {stackBb.toFixed(1)} <span className="text-neutral-500 font-normal">BB</span>
       </div>
 
       {/* Nash-Badge (nur für Hero) */}

@@ -9,7 +9,7 @@ function cellClass(value: number): string {
   if (value >= 2.0) return 'bg-red-900/50 text-red-300 font-semibold'
   if (value >= 1.4) return 'bg-orange-900/40 text-orange-300'
   if (value >= 1.0) return 'bg-yellow-900/30 text-yellow-200'
-  return 'text-slate-400'
+  return 'text-neutral-400'
 }
 
 export function BubbleFactorMatrix({ bubbleFactors, playerCount }: Props): JSX.Element {

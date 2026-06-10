@@ -47,7 +47,7 @@ export function DealPanel({ stacks, payouts }: Props): JSX.Element {
                 <td className="py-1.5 px-2 text-text">Sp.&nbsp;{i + 1}</td>
                 <td className="py-1.5 px-2 text-right tabnum text-muted">
                   {s.toLocaleString('de-DE')}
-                  <span className="ml-1 text-[10px] text-slate-600">({totalChips > 0 ? ((s / totalChips) * 100).toFixed(0) : 0} %)</span>
+                  <span className="ml-1 text-[10px] text-neutral-600">({totalChips > 0 ? ((s / totalChips) * 100).toFixed(0) : 0} %)</span>
                 </td>
                 <td className="py-1.5 px-2 text-right tabnum text-muted">{money(deal.chipChop[i])}</td>
                 <td className="py-1.5 px-2 text-right tabnum text-text">{money(deal.icmChop[i])}</td>
@@ -71,14 +71,14 @@ export function DealPanel({ stacks, payouts }: Props): JSX.Element {
               </div>
             ))}
           </div>
-          <p className="text-[10px] text-slate-600">
+          <p className="text-[10px] text-neutral-600">
             „Gesichert" (≥95 % Ticket-Equity): zusätzliche Chips bringen kaum Wert — selbst sehr starke
             Hände können korrekt gefoldet werden (Survival &gt; Chipakkumulation).
           </p>
         </div>
       )}
 
-      <p className="text-[10px] text-slate-600">
+      <p className="text-[10px] text-neutral-600">
         Modellabhängig · ICM nach Malmuth-Harville · ignoriert Skill, künftige Blinds und Spieldynamik.
       </p>
     </div>

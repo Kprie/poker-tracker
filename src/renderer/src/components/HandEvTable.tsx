@@ -64,12 +64,12 @@ export function HandEvTable({ data, selected, onSelect }: Props): JSX.Element {
 
   return (
     <div className="overflow-x-auto">
-      <table className="border-collapse select-none" style={{ fontSize: 9 }}>
+      <table className="border-collapse select-none" style={{ fontSize: 11 }}>
         <thead>
           <tr>
-            <th className="w-5 h-5" />
+            <th className="w-6 h-6" />
             {RANKS.map(r => (
-              <th key={r} className="w-11 h-5 text-center text-muted font-mono font-normal" style={{ fontSize: 9 }}>
+              <th key={r} className="w-12 h-6 text-center text-muted font-mono font-medium" style={{ fontSize: 11 }}>
                 {r}
               </th>
             ))}
@@ -78,7 +78,7 @@ export function HandEvTable({ data, selected, onSelect }: Props): JSX.Element {
         <tbody>
           {RANKS.map((_, i) => (
             <tr key={i}>
-              <td className="w-5 text-center text-muted font-mono" style={{ fontSize: 9 }}>
+              <td className="w-6 text-center text-muted font-mono font-medium" style={{ fontSize: 11 }}>
                 {RANKS[i]}
               </td>
               {RANKS.map((_, j) => {
@@ -93,14 +93,14 @@ export function HandEvTable({ data, selected, onSelect }: Props): JSX.Element {
                     title={`${id}: EV ${evLabel(ev)}`}
                     style={sel ? undefined : evToStyle(ev, maxAbsEv)}
                     className={[
-                      'w-11 h-9 text-center rounded-[2px] transition-colors',
+                      'w-12 h-11 text-center rounded-[3px] transition-colors',
                       onSelect ? 'cursor-pointer' : '',
                       sel ? 'ring-2 ring-white bg-accent' : '',
                     ].join(' ')}
                   >
-                    <div className="flex flex-col items-center justify-center h-full leading-none gap-px">
-                      <span className="text-white/90 font-mono font-medium" style={{ fontSize: 8 }}>{id}</span>
-                      <span className="text-white/60 tabnum" style={{ fontSize: 7 }}>{evLabel(ev)}</span>
+                    <div className="flex flex-col items-center justify-center h-full leading-none gap-0.5">
+                      <span className="text-white font-mono font-semibold" style={{ fontSize: 11 }}>{id}</span>
+                      <span className="text-white/75 tabnum" style={{ fontSize: 9 }}>{evLabel(ev)}</span>
                     </div>
                   </td>
                 )

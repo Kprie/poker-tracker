@@ -129,7 +129,7 @@ export function PotOddsCalculator(): JSX.Element {
         </div>
       </div>
 
-      <p className="text-[10px] text-slate-600">
+      <p className="text-[10px] text-neutral-600">
         Modellabhängig · Chip-EV ohne zukünftige Straßen · Caller-Betrag = Bet · gilt nur unter den eingegebenen Annahmen.
       </p>
     </div>
