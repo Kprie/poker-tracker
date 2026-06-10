@@ -1,8 +1,8 @@
 import type { Card } from './cards'
-import { drawRandom, FULL_DECK, handIdToCombos } from './cards'
-import { eval7 } from './handEval'
+import { handIdToCombos } from './cards'
 import type { HandId } from '../data/pushFoldData'
 import { ALL_HAND_IDS } from '../data/pushFoldData'
+import { computeCanonicalEquity } from './equityMc'
 
 // ─── Lazy Equity Cache ────────────────────────────────────────────────────────
 // Schlüssel: "H1_H2" wobei H1 ≤ H2 lexikografisch.
@@ -11,7 +11,6 @@ import { ALL_HAND_IDS } from '../data/pushFoldData'
 // nachfolgende Ladevorgänge.
 
 const STORAGE_KEY = 'poker-tracker:equity-cache-v3'  // v3: Fix invertierter Flip-Equity-Bug; v2-Cache war korrupt
-const ITERS_PER_COMBO = 200  // 200 Iters × ~10 Combos = 2000 eff. Samples → SE ≈ 1 %
 
 // In-Memory-Cache
 const memCache = new Map<string, number>(loadFromStorage())
@@ -36,40 +35,6 @@ function persistCache(): void {
 function cacheKey(id1: HandId, id2: HandId): { key: string; flipped: boolean } {
   if (id1 <= id2) return { key: `${id1}_${id2}`, flipped: false }
   return { key: `${id2}_${id1}`, flipped: true }
-}
-
-/**
- * Berechnet Equity von h1 gegen h2 via MC über alle nicht-konfliktierenden Combos.
- * Nutzt den schnellen array-freien eval7.
- */
-function computeCanonicalEquity(h1: HandId, h2: HandId): number {
-  const c1 = handIdToCombos(h1)
-  const c2 = handIdToCombos(h2)
-
-  let sumWin = 0
-  let count  = 0
-
-  for (const [a, b] of c1) {
-    for (const [c, d] of c2) {
-      if (a === c || a === d || b === c || b === d) continue  // Karten-Konflikt
-
-      const deck = FULL_DECK.filter(x => x !== a && x !== b && x !== c && x !== d)
-      let wins = 0, ties = 0
-
-      for (let i = 0; i < ITERS_PER_COMBO; i++) {
-        const board = drawRandom(deck, 5)
-        const s1 = eval7([a, b, board[0], board[1], board[2], board[3], board[4]])
-        const s2 = eval7([c, d, board[0], board[1], board[2], board[3], board[4]])
-        if (s1 > s2) wins++
-        else if (s1 === s2) ties++
-      }
-
-      sumWin += (wins + ties * 0.5) / ITERS_PER_COMBO
-      count++
-    }
-  }
-
-  return count > 0 ? sumWin / count : 0.5
 }
 
 /**
@@ -149,34 +114,83 @@ export async function precomputeAllEquities(
   onProgress?: (p: PrecomputeProgress) => void,
   chunkSize = 20,
 ): Promise<void> {
+  // Fehlende kanonische Paare ermitteln (lo ≤ hi lexikografisch = Schlüssel-Reihenfolge).
   const pairs: [HandId, HandId][] = []
-
   for (let i = 0; i < ALL_HAND_IDS.length; i++) {
     for (let j = i; j < ALL_HAND_IDS.length; j++) {
       const { key } = cacheKey(ALL_HAND_IDS[i], ALL_HAND_IDS[j])
       if (!memCache.has(key)) {
-        pairs.push([ALL_HAND_IDS[i], ALL_HAND_IDS[j]])
+        const [lo, hi] = key.split('_') as [HandId, HandId]
+        pairs.push([lo, hi])
       }
     }
   }
 
   const total = pairs.length
+  if (total === 0) {
+    onProgress?.({ done: 0, total: 0, pct: 1 })
+    return
+  }
 
-  for (let i = 0; i < pairs.length; i += chunkSize) {
-    const chunk = pairs.slice(i, i + chunkSize)
-    for (const [h1, h2] of chunk) {
-      lookupEquity(h1, h2)
-    }
-
-    if (onProgress) {
-      onProgress({ done: Math.min(i + chunkSize, total), total, pct: Math.min(1, (i + chunkSize) / total) })
-    }
-
-    // Mikrotask-Grenze: UI kann rendern
-    await new Promise<void>(resolve => setTimeout(resolve, 0))
+  // Bevorzugt im Web-Worker rechnen (Main-Thread bleibt frei → kein Ruckeln).
+  // Fällt bei fehlendem Worker (z. B. Nicht-Browser-Umgebung) auf den chunked
+  // Main-Thread-Pfad zurück.
+  try {
+    await precomputeViaWorker(pairs, total, onProgress)
+  } catch {
+    await precomputeChunkedMainThread(pairs, total, chunkSize, onProgress)
   }
 
   persistCache()
+}
+
+/** Rechnet die fehlenden Paare im Web-Worker; Ergebnisse landen im memCache. */
+function precomputeViaWorker(
+  pairs: [HandId, HandId][],
+  total: number,
+  onProgress?: (p: PrecomputeProgress) => void,
+): Promise<void> {
+  return new Promise<void>((resolve, reject) => {
+    let worker: Worker
+    try {
+      worker = new Worker(new URL('../workers/equityPrecompute.worker.ts', import.meta.url), { type: 'module' })
+    } catch (e) {
+      reject(e instanceof Error ? e : new Error(String(e)))
+      return
+    }
+    worker.addEventListener('message', (e: MessageEvent) => {
+      const msg = e.data as
+        | { type: 'progress'; done: number; entries: [HandId, HandId, number][] }
+        | { type: 'done' }
+      if (msg.type === 'progress') {
+        for (const [lo, hi, eq] of msg.entries) memCache.set(`${lo}_${hi}`, eq)
+        onProgress?.({ done: msg.done, total, pct: Math.min(1, msg.done / total) })
+      } else {
+        worker.terminate()
+        resolve()
+      }
+    })
+    worker.addEventListener('error', (e: ErrorEvent) => {
+      worker.terminate()
+      reject(new Error(e.message || 'Equity-Worker-Fehler'))
+    })
+    worker.postMessage({ pairs })
+  })
+}
+
+/** Fallback: synchron-chunked auf dem Main-Thread (mit setTimeout-Yield). */
+async function precomputeChunkedMainThread(
+  pairs: [HandId, HandId][],
+  total: number,
+  chunkSize: number,
+  onProgress?: (p: PrecomputeProgress) => void,
+): Promise<void> {
+  for (let i = 0; i < pairs.length; i += chunkSize) {
+    const chunk = pairs.slice(i, i + chunkSize)
+    for (const [lo, hi] of chunk) memCache.set(`${lo}_${hi}`, computeCanonicalEquity(lo, hi))
+    onProgress?.({ done: Math.min(i + chunkSize, total), total, pct: Math.min(1, (i + chunkSize) / total) })
+    await new Promise<void>(resolve => setTimeout(resolve, 0))
+  }
 }
 
 /** Wie viele Equity-Paare sind bereits im Cache? */
