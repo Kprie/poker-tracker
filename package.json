@@ -1,6 +1,6 @@
 {
   "name": "proker",
-  "version": "0.15.2",
+  "version": "0.16.0",
   "description": "Proker — Poker-Turnier-Tracker und ICM-Analyse-Tool",
   "main": "./out/main/index.js",
   "author": "",
